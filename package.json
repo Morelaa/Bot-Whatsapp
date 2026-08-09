@@ -1,0 +1,47 @@
+{
+  "name": "morela-bot",
+  "version": "0.0.1",
+  "description": "WhatsApp Bot Base with Button Support",
+  "main": "utama.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node utama.js",
+    "start": "node launcher.js",
+    "start:direct": "node utama.js"
+  },
+  "author": "Morela",
+  "license": "MIT",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@itsliaaa/baileys": "0.3.18-final",
+    "archiver": "^5.3.1",
+    "axios": "^1.13.6",
+    "better-sqlite3": "^11.10.0",
+    "canvas": "^2.11.2",
+    "chalk": "^4.1.2",
+    "cheerio": "^1.0.0-rc.12",
+    "crypto-js": "^4.2.0",
+    "figlet": "^1.7.0",
+    "file-type": "^19.0.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "gradient-string": "^3.0.0",
+    "human-readable": "^0.2.1",
+    "jimp": "^1.6.0",
+    "jszip": "^3.10.1",
+    "luxon": "^3.4.4",
+    "node-cache": "^5.1.2",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "node-webpmux": "^3.1.1",
+    "pdfkit": "^0.18.0",
+    "pino": "^8.19.0",
+    "playwright": "^1.59.1",
+    "sharp": "^0.33.5",
+    "tesseract.js": "^7.0.0",
+    "unzipper": "^0.12.3",
+    "yt-search": "^2.10.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
