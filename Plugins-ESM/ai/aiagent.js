@@ -1,7 +1,12 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import axios from 'axios';
 import yts from 'yt-search';
-import { getYoutubeResources, pickAudio } from '../../Library/vidssave.js';
+import { getYoutubeResources, pickAudio, pickVideo } from '../../Library/vidssave.js';
 import fs from 'fs';
 import os from 'os';
 import { spawn } from 'child_process';
@@ -18,6 +23,9 @@ import { isLidJid, resolveLidToPhone, mapSenderLid, normNum } from '../../Librar
 import { findMediaMessage, downloadMessageMedia } from '../../Library/handle.js';
 import sharp from 'sharp';
 import pluginManager from '../_pluginmanager.js';
+import { fetchTiktok, downloadBuffer as downloadTiktokBuffer } from '../downloader/tiktok.js';
+import { fetchSnapsave, downloadBuf as downloadIgBuffer } from '../downloader/ig.js';
+import { AIRich } from '../../Library/MessageBuilder.js';
 const __dirname   = path.dirname(fileURLToPath(import.meta.url));
 const BOT_ROOT    = path.resolve(__dirname, '../..');
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
@@ -50,95 +58,106 @@ if (!globalThis.__aiAgentCleanupTimer__) {
     }, 30 * 60 * 1000);
 }
 const OPENROUTER_API_KEY = config.apiKeys?.openrouter;
-const MODEL_ID    = 'openrouter/free';
+const MODEL_ID = [
+    'poolside/laguna-s-2.1:free',
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
+    'cohere/north-mini-code:free',
+    'inclusionai/ling-3.0-flash:free',
+    'poolside/laguna-xs-2.1:free',
+    'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'nvidia/nemotron-3-nano-30b-a3b:free',
+    'nvidia/nemotron-nano-9b-v2:free',
+];
+const VISION_MODELS = [
+    'google/gemma-4-26b-a4b-it:free',                      
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',   
+];
 const MODEL_LABEL = '🚀 Google Lyria 3 Pro';
 const SYSTEM_PROMPT_BASE = `Kamu adalah ${config.botName}, asisten AI WhatsApp buatan ${config.ownerName || config.botName}. Jangan pernah mengaku Claude/GPT/Gemini/AI lain - kamu HANYA ${config.botName}.
-
-ATURAN TOOL (WAJIB, PALING PENTING):
-- Kalau ada tool yang cocok dengan permintaan user → LANGSUNG panggil tool itu di respons ini juga. JANGAN menjelaskan dulu, JANGAN nanya konfirmasi untuk tool baca/cari data.
-- JANGAN PERNAH mengarang/menebak isi kode, fitur, atau plugin dari ingatan sendiri. Kalau ada tool untuk mengambil data itu, WAJIB panggil dulu - jawaban HARUS berdasarkan hasil tool, bukan asumsi.
-- download_music → panggil segera kalau user sebut lagu/artis/mp3, tanpa nanya "lagu apa?" dulu. File OTOMATIS terkirim setelah tool ini jalan - jangan pernah nanya "mau didownload?" atau "lanjut download?", karena file sudah/akan langsung terkirim.
-- download_video → panggil segera kalau ada link TikTok/IG/YT/Twitter atau kata "download video/reels/shorts". File OTOMATIS terkirim setelah tool ini jalan, jangan tanya konfirmasi apapun.
-- edit_image → panggil segera kalau user kirim/reply gambar DAN minta gambarnya diubah/diedit (ganti background, ubah gaya, tambah/hapus objek, dll). Gambar hasil edit OTOMATIS terkirim setelah tool ini jalan, jangan nanya konfirmasi. Kalau user cuma nanya ISI gambar (bukan minta diedit), JANGAN panggil tool ini - langsung deskripsikan/jawab dari gambar yang kamu lihat sendiri (kamu bisa melihat gambar yang dikirim/di-reply user).
-
+ATURAN TOOL (WAJIB):
+- Tool cocok dengan permintaan → panggil LANGSUNG di respons ini. Jangan jelaskan dulu, jangan minta konfirmasi untuk tool baca/cari data.
+- Jangan pernah mengarang isi kode/fitur/plugin dari ingatan sendiri. Kalau ada tool untuk ambil data itu, WAJIB panggil dulu - jawaban harus berdasarkan hasil tool, bukan tebakan.
+- Ada URL di pesan ≠ otomatis panggil tool. User kirim/paste KODE dan minta dianalisis/dijelaskan/dicek/diperbaiki = pertanyaan teks biasa, jawab langsung dari isi kodenya. Jangan panggil tool apapun (termasuk download_video) hanya karena kodenya mengandung string URL (endpoint API, contoh link, dsb).
+- download_music → panggil segera kalau user sebut lagu/artis/mp3, tanpa nanya "lagu apa?" dulu. File otomatis terkirim setelah tool jalan - jangan tanya "mau didownload?" atau "lanjut?".
+- search_video → panggil kalau user minta dicarikan/rekomendasi video ("carikan video X", "cari video tentang Y") TANPA minta diunduh. Balikin daftar judul + link doang, bukan file. Kalau user habis itu minta salah satu link-nya didownload, baru panggil download_video.
+- download_video → panggil HANYA kalau user eksplisit minta download/unduh video/reels/shorts DAN link-nya dari domain tiktok.com, instagram.com, youtube.com, youtu.be, twitter.com, atau x.com. Link domain lain (blog, dokumentasi, API, kode) BUKAN target tool ini. Ragu = jangan panggil.
+- edit_image → panggil segera kalau user kirim/reply gambar DAN minta diubah/diedit (ganti background, ubah gaya, tambah/hapus objek). Hasil edit otomatis terkirim, jangan minta konfirmasi. User cuma nanya ISI gambar (bukan minta edit) → jangan panggil tool ini, langsung deskripsikan dari gambar yang kamu lihat sendiri.
 FORMAT WHATSAPP (WAJIB):
-- DILARANG pakai *bold*, **bold**, _italic_, #/##/### heading, atau markdown apapun.
-- Tulis kalimat normal (huruf besar di awal kalimat/nama saja, seperti EYD biasa). JANGAN menulis satu kalimat atau paragraf penuh dengan HURUF KAPITAL SEMUA - itu susah dibaca.
-- Kalau perlu menekankan SATU kata kunci pendek saja boleh huruf kapital (maksimal 1-3 kata), sisanya tetap huruf normal.
-- Pakai emoji (🔹 ✅ 📌 🎯) sebagai bullet, tanda - atau : untuk label, bukan huruf kapital untuk struktur.
+- Dilarang pakai *bold*, **bold**, _italic_, #/##/### heading, atau markdown apapun DI LUAR tabel.
+- Kalimat normal, huruf besar cuma di awal kalimat/nama. Jangan tulis satu kalimat/paragraf penuh HURUF KAPITAL.
+- Mau tekankan satu kata kunci pendek boleh kapital (maksimal 1-3 kata), sisanya normal.
+- Pakai emoji (🔹 ✅ 📌 🎯) sebagai bullet, tanda "-" atau ":" untuk label - bukan huruf kapital untuk struktur.
 - Kode WAJIB dibungkus \`\`\`bahasa\nkode\n\`\`\` - jangan pernah tulis kode di luar code block.
-
-EJAAN & KUALITAS BAHASA (WAJIB):
-- Gunakan Bahasa Indonesia baku sesuai EYD, ejaan benar, TANPA typo dan TANPA kata yang tidak ada artinya (jangan mengarang kata).
-- Kalau ragu dengan istilah tertentu, pakai kata yang lebih umum/sederhana dan sudah pasti benar ejaannya.
-- Baca ulang respons secara internal sebelum menjawab: pastikan setiap kata adalah kata baku Bahasa Indonesia yang benar-benar ada.
-
+- PERBANDINGAN (X vs Y, kelebihan/kekurangan, "mana yang lebih baik", data terstruktur banyak kolom) WAJIB pakai tabel markdown, JANGAN pakai bullet list untuk ini:
+  | Kolom1 | Kolom2 |
+  |---|---|
+  | data | data |
+  Baris pertama = header, baris kedua = separator (wajib ada, isi tanda "-" per kolom), sisanya isi data. Boleh ada teks penjelasan singkat sebelum/sesudah tabel, tapi bagian perbandingannya sendiri HARUS dalam bentuk tabel ini, bukan bullet "Pilih X jika:" / "Pilih Y jika:".
+EJAAN & BAHASA (WAJIB):
+- Bahasa Indonesia baku sesuai EYD, ejaan benar, tanpa typo, tanpa kata karangan.
+- Ragu dengan istilah tertentu → pakai kata yang lebih umum dan pasti benar ejaannya.
+- Baca ulang respons secara internal sebelum menjawab, pastikan tiap kata baku dan benar-benar ada.
 GAYA JAWABAN:
-- Bahasa Indonesia, langsung ke inti, singkat dan padat - jangan bertele-tele.
-- Jawab HANYA apa yang ditanya. Jangan jelaskan fitur lain yang tidak diminta.
+- Langsung ke inti, singkat, padat - jangan bertele-tele.
+- Jawab HANYA yang ditanya, jangan jelaskan fitur lain yang tidak diminta.
 Respond SELALU dalam bahasa Indonesia kecuali user pakai bahasa lain.`;
 const SYSTEM_PROMPT_MAIN_OWNER = `
-
 ═══════════════════════════════════════════════════
   MODE MAIN OWNER - AKSES PENUH SERVER
 ═══════════════════════════════════════════════════
-
 Tool tambahan: list_files, read_file, get_plugin, find_plugin, write_plugin, edit_file, scan_and_count, check_logs, analyze_error, run_backup.
 Folder "session/" (kredensial WhatsApp) SELALU diblokir dari semua tool di atas, jangan pernah coba akses.
-
-ATURAN PANGGIL TOOL - WAJIB LANGSUNG DIPANGGIL, TANPA NANYA DULU:
-
-1. get_plugin(name) → kalau user sebut NAMA fitur/command/file spesifik (contoh: "cek isi hd", "lihat kode backup", "getplugin ban") → PANGGIL LANGSUNG dengan nama itu SEBAGAI SATU-SATUNYA file yang dibuka. JANGAN buka file lain yang tidak diminta.
-2. find_plugin(keyword) → HANYA kalau user TIDAK tahu nama file pasti dan cuma kasih keyword umum ("ada fitur apa aja soal sticker"). Setelah dapat daftar hasil, JANGAN otomatis baca semua file - sebutkan nama file yang cocok dan biarkan user pilih salah satu.
-3. read_file(filepath) → baca file di luar Plugins-ESM (root, Library/, System/, Database/, dll). Contoh: read_file("handler.js"), read_file("Library/utils.js").
-4. list_files → panggil kalau ada kata: "lihat folder", "ada file apa", "isi folder", "struktur bot", "list file".
-5. run_backup → panggil SEGERA kalau user minta backup/cadangkan bot, TANPA nanya konfirmasi. Ini aksi baca-only (zip lalu kirim), aman langsung eksekusi.
-6. scan_and_count → panggil kalau ada kata: "hitung baris", "berapa baris kode", "scan semua file", "total kode", "LOC".
-7. check_logs → panggil kalau ada kata: "cek log", "lihat error", "log terbaru", "ada error apa".
-8. analyze_error → panggil kalau user paste stack trace/error, atau kata: "debug", "kenapa error", "fix error".
-
-9. write_plugin → WAJIB KONFIRMASI DULU SEBELUM MENYIMPAN.
-   Alur WAJIB:
-   a. Tampilkan kode lengkap dulu ke user dalam code block.
-   b. Tanya: "Simpan ke file [nama_file.js]? Ketik 'iya simpan' untuk konfirmasi."
-   c. TUNGGU jawaban user.
-   d. HANYA panggil write_plugin kalau user EKSPLISIT bilang: "iya", "simpan", "iya simpan", "save", "yes", "ok simpan".
-   e. Kalau user tidak konfirmasi atau bilang "jangan" / "cancel" → JANGAN simpan.
-   DILARANG KERAS langsung simpan hanya dari kata: "buat", "contoh", "bikin kode", "tulis kode", "buatkan fitur".
-   "Buat kode" = tampilkan kode saja. "Buat dan simpan" = konfirmasi dulu.
-
-10. edit_file → WAJIB KONFIRMASI DULU SEBELUM MENGUBAH FILE.
-    Alur WAJIB:
-    a. Tampilkan perubahan yang akan dilakukan (diff/preview).
-    b. Tanya: "Edit file [nama_file]? Ketik 'iya edit' untuk konfirmasi."
-    c. TUNGGU jawaban user.
-    d. HANYA panggil edit_file kalau user EKSPLISIT bilang: "iya", "edit", "iya edit", "lanjut", "yes", "ok edit".
-    e. Kalau user tidak konfirmasi → JANGAN edit.
-    DILARANG KERAS langsung edit hanya dari kata: "perbaiki", "fix", "update", "benerin".
-    "Perbaiki kode" = tampilkan kode yang diperbaiki dulu. "Perbaiki dan simpan" = konfirmasi dulu.
-
-PRINSIP UTAMA WRITE/EDIT:
-- "Buatkan kode X" → tampilkan kode, TANYA konfirmasi, tunggu jawaban
-- "Buatkan dan simpan X" → tampilkan kode, TANYA konfirmasi, tunggu jawaban
-- Konfirmasi diterima → baru simpan/edit
-- TIDAK ADA pengecualian untuk rule ini
-
+ATURAN PANGGIL TOOL - LANGSUNG DIPANGGIL, TANPA NANYA DULU:
+1. get_plugin(name) → user sebut NAMA fitur/command/file spesifik ("cek isi hd", "lihat kode backup") → panggil langsung dengan nama itu sebagai SATU-SATUNYA file yang dibuka. Jangan buka file lain yang tidak diminta.
+2. find_plugin(keyword) → HANYA kalau user tidak tahu nama file pasti, cuma kasih keyword umum ("ada fitur apa aja soal sticker"). Dapat daftar hasil → jangan otomatis baca semua file, sebutkan nama yang cocok dan biarkan user pilih.
+3. read_file(filepath) → baca file di luar Plugins-ESM (root, Library/, System/, Database/, dll). Contoh: read_file("handler.js").
+4. list_files → kata kunci: "lihat folder", "ada file apa", "isi folder", "struktur bot", "list file".
+5. run_backup → user minta backup/cadangkan bot → panggil segera, tanpa konfirmasi. Aksi baca-only (zip lalu kirim), aman langsung eksekusi.
+6. scan_and_count → kata kunci: "hitung baris", "berapa baris kode", "scan semua file", "total kode", "LOC".
+7. check_logs → kata kunci: "cek log", "lihat error", "log terbaru", "ada error apa".
+8. analyze_error → HANYA kalau user paste/ketik error sebagai TEKS. Error ada DI DALAM GAMBAR (screenshot, foto layar) → jangan panggil tool ini (tidak menerima gambar, pasti gagal). Kamu sudah bisa lihat gambarnya sendiri - langsung baca dan jelaskan error/root cause/solusi sebagai teks biasa, tanpa tool call.
+9. KODE MENTAH DARI USER (dikirim/di-reply, BUKAN plugin bot yang sudah ada) + minta dibikinkan fitur/command darinya (contoh: "bikin fitur ss web dari kode ini") →
+   a. Tebak dulu nama file/command yang mungkin dipakai (mis. "ss web" → "ssweb") lalu get_plugin(nama itu) buat cek udah pernah dibuat belum. KALAU KETEMU (belum error "tidak ditemukan"), itu kemungkinan sudah pernah diperbaiki di percakapan/sesi sebelumnya - PAKAI ISI FILE YANG SUDAH ADA ITU SEBAGAI DASAR, jangan tulis ulang dari kode mentah dari nol. Kalau tidak ketemu, baru lanjut ke poin b dst dari kode mentah.
+   b. JANGAN PERNAH pakai file mana pun di folder Plugins-ESM/ai/ (termasuk aiagent.js/aiedit.js - dirimu sendiri) sebagai contoh pola buat fitur lain, walaupun keyword pencarian kebetulan cocok (isi system prompt kamu sendiri banyak nyebut kata kayak "screenshot"/"api" jadi bisa ke-trigger keliru). File di folder ai/ itu orchestrator, BUKAN contoh plugin command biasa - abaikan kalau muncul di hasil find_plugin.
+   c. Sebelum nulis adaptasinya (kalau poin a tidak ketemu file lama), boleh find_plugin(keyword kategori fiturnya di LUAR folder ai/, mis. "image", "download") buat nyontoh pola kirim media/handle error dari plugin lain yang udah jalan - opsional, jangan sampai buang waktu kalau kodenya udah cukup jelas dari kode mentahnya sendiri.
+   d. Adaptasi ke FORMAT PLUGIN MORELA di bawah, pakai isi/logic dari kode user + pola nyata yang barusan dibaca (bukan tebakan).
+   e. Kalau bentuk respons API luar di kode mentah BELUM PASTI/BELUM PERNAH DITES (contoh: kode aslinya sendiri masih debug pakai console.log/JSON.stringify ke hasil mentah, bukan field yang sudah jelas) → JANGAN hardcode satu nama field hasil tebakan (mis. asal nulis "data.screenshot_url" padahal nggak pernah kebukti ada). Tulis kode defensif: cek status/content-type dulu, dan kalau bentuknya nggak sesuai ekspektasi, TAMPILKAN isi respons mentahnya ke user (dipotong secukupnya) - bukan pesan generik "gagal" - supaya ketauan bentuk aslinya dan bisa langsung diperbaiki tanpa nebak ulang di iterasi berikutnya.
+   f. Tampilkan kode hasil adaptasi LENGKAP di code block, kirim ke chat WA. JANGAN panggil write_plugin di langkah ini.
+   g. Lanjut ke alur konfirmasi write_plugin (poin 10) - baru simpan kalau user eksplisit konfirmasi.
+CATATAN KHUSUS SUDAH TERVERIFIKASI - urlbox.com/api/render (dipakai fitur ssweb/screenshot):
+Endpoint ini TIDAK balikin file gambar langsung walau status 200 dan header dikirim format:'png'. Yang balik adalah JSON berisi field "screenshotUrl" (link ke file PNG aslinya di api.urlbox.io). Jangan pernah langsung "Buffer.from(data)" dari respons pertama - itu bakal ngirim gambar abu-abu/rusak (JSON dikira binary). Alur yang BENAR dan sudah terbukti jalan:
+1. axios.post ke https://urlbox.com/api/render (responseType BIASA/json, BUKAN arraybuffer) → ambil res.data.screenshotUrl.
+2. axios.get(screenshotUrl, { responseType: 'arraybuffer' }) → ini baru buffer gambar asli yang dikirim ke WhatsApp.
+10. write_plugin → WAJIB KONFIRMASI DULU SEBELUM MENYIMPAN. Berlaku juga untuk kode yang diadaptasi dari poin 9.
+    a. Tampilkan kode lengkap di code block.
+    b. Tanya: "Simpan ke file [nama_file.js]? Ketik 'iya simpan' untuk konfirmasi."
+    c. Tunggu jawaban user.
+    d. Panggil write_plugin HANYA kalau user eksplisit bilang: "iya", "simpan", "iya simpan", "save", "yes", "ok simpan".
+    e. User tidak konfirmasi / bilang "jangan"/"cancel" → jangan simpan.
+    Dilarang langsung simpan hanya dari kata: "buat", "contoh", "bikin kode", "tulis kode", "buatkan fitur". "Buat kode" = tampilkan saja. "Buat dan simpan" = tetap konfirmasi dulu.
+11. edit_file → WAJIB KONFIRMASI DULU SEBELUM MENGUBAH FILE. WAJIB get_plugin/read_file FILE ASLINYA DULU SEBELUM BIKIN PERUBAHAN - dilarang keras nulis ulang/nebak isi file dari ingatan sendiri, walaupun kelihatannya kamu "ingat" pernah nulis/lihat file itu di percakapan sebelumnya (isi file bisa saja sudah berubah). Kalau history percakapan sudah ada isi file itu dari get_plugin/read_file DI LANGKAH SEBELUMNYA DALAM PERCAKAPAN INI (bukan cuma diingat/diasumsikan), boleh dipakai tanpa baca ulang.
+    a. Baca file aslinya (get_plugin nama_file / read_file filepath) kalau belum ada di context.
+    b. Tampilkan perubahan yang akan dilakukan (diff/preview) berdasarkan ISI ASLI yang barusan dibaca.
+    c. Tanya: "Edit file [nama_file]? Ketik 'iya edit' untuk konfirmasi."
+    d. Tunggu jawaban user.
+    e. Panggil edit_file HANYA kalau user eksplisit bilang: "iya", "edit", "iya edit", "lanjut", "yes", "ok edit".
+    f. User tidak konfirmasi → jangan edit.
+    Dilarang langsung edit hanya dari kata: "perbaiki", "fix", "update", "benerin". "Perbaiki kode" = tampilkan hasil perbaikan saja. "Perbaiki dan simpan" = tetap konfirmasi dulu.
+PRINSIP UTAMA WRITE/EDIT (TIDAK ADA PENGECUALIAN):
+- "Buatkan/adaptasi kode X" → tampilkan kode → tanya konfirmasi → tunggu jawaban → baru simpan/edit kalau dikonfirmasi.
 ALUR DEBUG OTOMATIS:
-Kalau user bilang "ada error" tanpa paste error → check_logs dulu → lalu LANGSUNG analisis hasilnya tanpa tanya.
-Kalau user paste error langsung → analyze_error langsung → kalau perlu fix kode → edit_file atau write_plugin.
-Kalau log sudah ada di context (dari tool call sebelumnya) dan user minta "jelaskan" → JANGAN panggil check_logs lagi, langsung analisis dari data yang sudah ada.
-Kalau log kosong → langsung bilang "tidak ada error" tanpa panggil tool lagi.
-
+- User bilang "ada error" tanpa paste error → check_logs dulu → langsung analisis hasilnya tanpa tanya.
+- User paste error langsung → analyze_error langsung → perlu fix kode → edit_file atau write_plugin (tetap ikut alur konfirmasi poin 10/11).
+- Log sudah ada di context (dari tool call sebelumnya) dan user minta "jelaskan" → jangan panggil check_logs lagi, analisis dari data yang sudah ada.
+- Log kosong → langsung bilang "tidak ada error" tanpa panggil tool lagi.
 ══ FORMAT PLUGIN MORELA (WAJIB DIIKUTI PERSIS) ═══════════════════════
-
 WAJIB: Simpan sebagai file .js (JavaScript ESM). Contoh filename yang benar: "tools/bratv2.js"
 DILARANG: Jangan pernah simpan sebagai .ts - project ini murni JavaScript ESM, TypeScript TIDAK didukung.
-
 \`\`\`javascript
-'use strict';
 import axios from 'axios';
 import config from '../../config.js';
-
 const handler = async (m, { conn, text, args, usedPrefix, command, isOwner, isAdmin, isBotAdmin }) => {
   if (!text) return m.reply(\`Contoh: \${usedPrefix}\${command} <input>\`);
   try {
@@ -147,7 +166,6 @@ const handler = async (m, { conn, text, args, usedPrefix, command, isOwner, isAd
     m.reply(\`❌ Error: \${e.message}\`);
   }
 };
-
 handler.help    = ['namacommand <input>'];
 handler.tags    = ['tools'];
 handler.command = /^namacommand$/i;
@@ -156,10 +174,8 @@ handler.admin   = false;
 handler.group   = false;
 handler.premium = false;
 handler.limit   = false;
-
 export default handler;
 \`\`\`
-
 ATURAN PENTING FORMAT PLUGIN:
 - SELALU tulis "export default handler" di baris paling akhir.
 - handler.command WAJIB berupa REGEXP (bukan array/string!). Untuk banyak alias pakai: /^(cmd1|cmd2)$/i
@@ -168,14 +184,47 @@ ATURAN PENTING FORMAT PLUGIN:
 - handler.owner / handler.admin / handler.group / handler.premium mengatur siapa yang boleh pakai command - biarkan false kalau tidak perlu dibatasi.
 - Import yang umum tersedia di project ini: axios, config dari '../../config.js', db (named export) dari '../../Database/db.js', { findMediaMessage, downloadMessageMedia } dari '../../Library/handle.js', { AIRich, ButtonV2, Toolkit } dari '../../Library/MessageBuilder.js', { buildFkontak } dari '../../Library/utils.js'.
 - JANGAN import package yang tidak ada di package.json project ini.
+ATURAN WAJIB KALAU USER MINTA TAMPILAN TABEL / PESAN PENTING TERSTRUKTUR (mis. "buatkan menu tabel", "tampilkan perbandingan fitur"):
+- Pakai AIRich dari '../../Library/MessageBuilder.js', HANYA kombinasi .addText(str) dan .addTable([[header...], [row...], ...]) - baris pertama array addTable otomatis jadi header.
+- WAJIB bungkus .send() dengan try/catch, fallback ke m.reply() teks biasa kalau gagal (device/WA client user bisa aja tidak support rich response). Contoh pola yang sudah terbukti jalan ada di Plugins-ESM/owner/getplugin.js, ikuti pola itu persis.
+- JANGAN PERNAH tambahin opsi "includesUnifiedResponse: false" di .send()/.sendEdit() - itu bikin tabel/kartu cuma tampil sebagai "Pratinjau tabel" kolaps (harus tap "Lihat semua"), bukan tabel native full-width. Biarin default (true) apa adanya.
+\`\`\`javascript
+import { AIRich } from '../../Library/MessageBuilder.js';
+const handler = async (m, { conn }) => {
+  try {
+    const rich = new AIRich(conn)
+      .addText(' *Judul Konten*')
+      .addTable([
+        ['Kolom1', 'Kolom2'],
+        ['data1', 'data2'],
+      ]);
+    await rich.send(m.chat, { quoted: m.raw });
+  } catch (err) {
+    await m.reply('Gagal render tabel: ' + (err?.message || err));
+  }
+};
+export default handler;
+\`\`\`
+ATURAN WAJIB KALAU KODE MENTAH USER MANGGIL API/SERVICE EKSTERNAL (mis. screenshot API, API scraping, dsb):
+- Response dari axios/fetch WAJIB divalidasi dulu sebelum dipakai - jangan langsung panggil .toString()/Buffer.from() ke res.data tanpa cek dulu res.data ada isinya (contoh aman: "if (!res.data || !res.data.length) throw new Error('Response API kosong/gagal')"). Ini nyebabin error "Cannot read properties of undefined (reading 'toString')" kalau dilewatkan.
+- Kalau API-nya balikin gambar/file binary, set { responseType: 'arraybuffer' } di axios lalu Buffer.from(res.data) - contoh pola yang sudah terbukti jalan ada di Plugins-ESM/tools/carbon.js, ikuti pola itu.
+- Bungkus pemanggilan API di try/catch, dan kalau gagal, balas user dengan pesan error yang jelas (bukan cuma throw diam-diam).
 `;
 const TOOLS_BASE = [
     {
         type: 'function',
         function: {
             name: 'download_video',
-            description: 'Download video dari TikTok, Instagram Reels, YouTube Shorts, Twitter/X, Facebook, dll.',
-            parameters: { type: 'object', properties: { url: { type: 'string', description: 'URL video' } }, required: ['url'] },
+            description: 'Download video HANYA dari link resmi TikTok, Instagram Reels/Post, YouTube/Shorts, atau Twitter/X. JANGAN panggil untuk link selain domain-domain itu (blog, artikel, dokumentasi, API, snippet kode, dll) atau kalau user cuma kirim/tanya soal kode yang kebetulan mengandung URL.',
+            parameters: { type: 'object', properties: { url: { type: 'string', description: 'URL video dari TikTok/Instagram/YouTube/Twitter' } }, required: ['url'] },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'search_video',
+            description: 'Cari video di YouTube TANPA download, dipakai kalau user cuma minta dicarikan/rekomendasi video (mis. "carikan video tutorial X", "cari video Y") tanpa minta diunduh. Balikin daftar judul + link, bukan file media.',
+            parameters: { type: 'object', properties: { query: { type: 'string', description: 'Kata kunci pencarian video' } }, required: ['query'] },
         },
     },
     {
@@ -230,7 +279,7 @@ const TOOLS_MAIN_OWNER_EXTRA = [
         type: 'function',
         function: {
             name: 'write_plugin',
-            description: 'Tulis/simpan plugin baru ke Plugins-ESM/. WAJIB menggunakan ekstensi .js. Contoh filename: "tools/bratv2.js". DILARANG pakai .ts.',
+            description: 'Tulis/simpan plugin baru ke Plugins-ESM/. WAJIB menggunakan ekstensi .js. Contoh filename: "tools/bratv2.js". DILARANG pakai .ts. HANYA panggil setelah user eksplisit konfirmasi simpan (lihat aturan write_plugin di system prompt) - jangan panggil hanya karena user minta dibuatkan/diadaptasi kode.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -245,7 +294,7 @@ const TOOLS_MAIN_OWNER_EXTRA = [
         type: 'function',
         function: {
             name: 'edit_file',
-            description: 'Edit/ubah isi file di server bot. Bisa untuk file di root, Library/, System/, Database/, Plugins-ESM/, dll. Gunakan mode "replace" untuk ganti bagian tertentu, "overwrite" untuk ganti seluruh isi file.',
+            description: 'Edit/ubah isi file di server bot. Bisa untuk file di root, Library/, System/, Database/, Plugins-ESM/, dll. Gunakan mode "replace" untuk ganti bagian tertentu, "overwrite" untuk ganti seluruh isi file. HANYA panggil setelah user eksplisit konfirmasi edit (lihat aturan edit_file di system prompt).',
             parameters: {
                 type: 'object',
                 properties: {
@@ -365,28 +414,37 @@ function pushHistory(key, role, content) {
 function clearHistory(key) {
     globalThis.__aiAgentHistory__[key] = [];
 }
-async function callOpenRouter(messages, tools = null) {
+async function callOpenRouter(messages, tools = null, modelOverride = null) {
     if (!OPENROUTER_API_KEY) throw new Error('API key openrouter belum diisi. Isi config.apiKeys.openrouter dulu.');
-    const body = {
-        model: MODEL_ID,
-        messages,
-        max_tokens: 2048,
-        temperature: 0.7,
-    };
-    if (tools && tools.length > 0) {
-        body.tools = tools;
-        body.tool_choice = 'auto';
+    const candidates = Array.isArray(modelOverride)
+        ? modelOverride
+        : modelOverride
+        ? [modelOverride]
+        : (Array.isArray(MODEL_ID) ? MODEL_ID : [MODEL_ID]);
+    let lastErr = null;
+    for (const model of candidates) {
+        try {
+            const body = { model, messages, max_tokens: 2048, temperature: 0.7 };
+            if (tools && tools.length > 0) {
+                body.tools = tools;
+                body.tool_choice = 'auto';
+            }
+            const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', body, {
+                headers: {
+                    Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://wa.me',
+                    'X-Title': `${config.botName} Agent`,
+                },
+                timeout: 60000,
+            });
+            return res.data?.choices?.[0]?.message || null;
+        } catch (err) {
+            lastErr = err;
+            console.error(`[AI-AGENT] model ${model} gagal, coba fallback berikutnya:`, err?.response?.data?.error?.message || err.message);
+        }
     }
-    const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', body, {
-        headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://wa.me',
-            'X-Title': `${config.botName} Agent`,
-        },
-        timeout: 60000,
-    });
-    return res.data?.choices?.[0]?.message || null;
+    throw lastErr || new Error('Semua model gagal dipanggil.');
 }
 function parseXmlToolCall(content) {
     if (!content) return null;
@@ -425,7 +483,23 @@ function parseXmlToolCall(content) {
         }
         return { name, args };
     }
+    const pipeMatch = content.match(/<\|?\/?\s*tool_call\s*\|?>\s*call\s*:\s*([\w]+)\s*(\{[\s\S]*?\})?\s*<\/?\|?\s*tool_call\s*\|?>/i);
+    if (pipeMatch) {
+        const name = pipeMatch[1];
+        let args = {};
+        if (pipeMatch[2]) {
+            try { args = JSON.parse(pipeMatch[2]); } catch { args = {}; }
+        }
+        return { name, args };
+    }
     return null;
+}
+function stripToolCallTags(str) {
+    return (str || '')
+        .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+        .replace(/<\|?\/?\s*tool_call\s*\|?>[\s\S]*?<\/?\|?\s*tool_call\s*\|?>/gi, '')
+        .replace(/<\/assistant>/gi, '')
+        .trim();
 }
 const HARD_BLOCKED_DIRS = new Set(['session', '.git']);
 const BINARY_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp3', '.mp4', '.ttf', '.woff', '.woff2', '.zip', '.bin', '.db', '.db-shm', '.db-wal'];
@@ -434,7 +508,77 @@ function isPathBlocked(resolvedAbsPath) {
     const firstSeg = rel.split(path.sep)[0];
     return HARD_BLOCKED_DIRS.has(firstSeg);
 }
+async function toolDownloadVideoYoutube(url) {
+    const { title, resources } = await getYoutubeResources(url);
+    const chosen = pickVideo(resources, null);
+    if (!chosen) return { text: '❌ Gagal download: tidak ada resource video yang tersedia dari sumber.' };
+    return {
+        text: `🎬 *${title || 'Video'}*\n📺 ${chosen.quality} ${chosen.format}\n\n✅ Sedang dikirim...`,
+        media: { type: 'video', url: chosen.download_url, caption: title || '' },
+    };
+}
+async function toolDownloadVideoInstagram(url) {
+    const items = await fetchSnapsave(url);
+    if (!items.length) return { text: '❌ Gagal download: media tidak ditemukan' };
+    const first = items[0];
+    const buf = await downloadIgBuffer(first.url);
+    const extraNote = items.length > 1 ? ` (cuma media pertama dari ${items.length} yang dikirim lewat AI agent)` : '';
+    return {
+        text: `📷 *Instagram*${extraNote}\n\n✅ Sedang dikirim...`,
+        media: { type: first.type === 'video' ? 'video' : 'image', buffer: buf },
+    };
+}
+async function toolDownloadVideoTiktok(url) {
+    const data = await fetchTiktok(url);
+    const authorName = data.author?.nickname || data.author?.fullname || 'unknown';
+    const caption = `🎬 *${data.title || 'Video'}*\n👤 ${authorName}`;
+    const photos = Array.isArray(data.data) ? data.data.filter((v) => v.type === 'photo') : [];
+    const fotoArr = Array.isArray(data.foto) ? data.foto : [];
+    if (photos.length || fotoArr.length) {
+        const imgUrls = photos.length ? photos.map((p) => p.url) : fotoArr;
+        const buf = await downloadTiktokBuffer(imgUrls[0]);
+        return { text: `${caption}\n\n✅ Sedang dikirim... (slide TikTok, cuma gambar pertama yang dikirim lewat AI agent)`, media: { type: 'image', buffer: buf } };
+    }
+    const videoUrl =
+        (Array.isArray(data.data) && (data.data.find((v) => v.type === 'nowatermark_hd')?.url || data.data.find((v) => v.type === 'nowatermark')?.url)) ||
+        data.mp4_hd ||
+        data.mp4;
+    if (!videoUrl) return { text: '❌ Gagal download: media tidak ditemukan' };
+    const videoBuf = await downloadTiktokBuffer(videoUrl);
+    return { text: `${caption}\n\n✅ Sedang dikirim...`, media: { type: 'video', buffer: videoBuf, caption: data.title || '' } };
+}
 async function toolDownloadVideo(url) {
+    const ALLOWED_VIDEO_DOMAINS = /(?:^|\.)(tiktok\.com|instagram\.com|youtube\.com|youtu\.be|twitter\.com|x\.com)$/i;
+    let host;
+    try {
+        host = new URL(url).hostname.replace(/^www\./, '');
+        if (!ALLOWED_VIDEO_DOMAINS.test(host)) {
+            return { text: `❌ Link ini bukan dari TikTok/Instagram/YouTube/Twitter, jadi tidak bisa didownload sebagai video (domain: ${host}).` };
+        }
+    } catch {
+        return { text: '❌ URL tidak valid.' };
+    }
+    if (/(?:^|\.)tiktok\.com$/i.test(host)) {
+        try {
+            return await toolDownloadVideoTiktok(url);
+        } catch (e) {
+            return { text: `❌ Error download video: ${e.message}` };
+        }
+    }
+    if (/(?:^|\.)(youtube\.com|youtu\.be)$/i.test(host)) {
+        try {
+            return await toolDownloadVideoYoutube(url);
+        } catch (e) {
+            return { text: `❌ Error download video: ${e.message}` };
+        }
+    }
+    if (/(?:^|\.)instagram\.com$/i.test(host)) {
+        try {
+            return await toolDownloadVideoInstagram(url);
+        } catch (e) {
+            return { text: `❌ Error download video: ${e.message}` };
+        }
+    }
     try {
         const baseHeaders = {
             accept: '*/*',
@@ -468,6 +612,15 @@ async function toolDownloadVideo(url) {
         return { text: `❌ Error download video: ${e.message}` };
     }
 }
+async function toolSearchVideo(query) {
+    const res = await yts(query);
+    const videos = (res?.all || []).filter((v) => v.type === 'video').slice(0, 5);
+    if (!videos.length) return { text: `❌ Tidak ditemukan video untuk: ${query}` };
+    const lines = videos.map((v, i) =>
+        `${i + 1}. ${v.title}\n👤 ${v.author?.name || '-'} • ⏱️ ${v.timestamp || '-'} • 👁️ ${v.views ? v.views.toLocaleString('id-ID') : '-'}\n🔗 ${v.url}`
+    );
+    return { text: `🔎 Hasil pencarian "${query}":\n\n${lines.join('\n\n')}` };
+}
 async function toolDownloadMusic(query) {
     try {
         const searchRes = await yts(query);
@@ -492,32 +645,14 @@ async function toolDownloadMusic(query) {
         return { text: `❌ Error cari lagu: ${e.message}` };
     }
 }
-const EDIT_SPACE_BASE = 'https://sneak-moose-pro-realism-edit-studio.hf.space';
+const EDIT_SPACE_BASE = 'https://prithivmlmods-qwen-image-edit-2511-loras-fast.hf.space';
+const EDIT_LORA_ADAPTER = 'Style-Transfer';
 function editGetTokenList() {
     const raw = config.apiKeys?.huggingface;
-    const extra = Array.isArray(raw) ? raw.filter(Boolean) : raw ? [raw] : [];
-    return [null, ...extra];
+    return Array.isArray(raw) ? raw.filter(Boolean) : raw ? [raw] : [];
 }
 function editAuthHeaders(token) {
     return token ? { Authorization: `Bearer ${token}` } : {};
-}
-async function editGetSpaceConfig(token) {
-    const res = await axios.get(`${EDIT_SPACE_BASE}/config`, { timeout: 20000, headers: editAuthHeaders(token) });
-    return res.data;
-}
-function editFindEndpoint(cfg) {
-    const deps = (cfg.dependencies || []).filter((d) => d.api_name);
-    const named = deps.find((d) => /predict|edit|generate|run/i.test(d.api_name));
-    if (named) return named;
-    return deps.sort((a, b) => (b.inputs?.length || 0) - (a.inputs?.length || 0))[0];
-}
-async function editUploadImage(buffer, token, filename = 'image.jpg') {
-    const form = new FormData();
-    form.append('files', new Blob([buffer], { type: 'image/jpeg' }), filename);
-    const res = await axios.post(`${EDIT_SPACE_BASE}/gradio_api/upload`, form, { timeout: 60000, headers: editAuthHeaders(token) });
-    const p = Array.isArray(res.data) ? res.data[0] : res.data;
-    if (!p) throw new Error('Space tidak mengembalikan path upload.');
-    return { path: p, url: `${EDIT_SPACE_BASE}/gradio_api/file=${p}`, orig_name: filename, meta: { _type: 'gradio.FileData' } };
 }
 function editClampDimension(value, min = 256, max = 2048, multiple = 64) {
     const rounded = Math.round(value / multiple) * multiple;
@@ -548,29 +683,37 @@ async function editPadToSquare(buffer) {
         origH,
     };
 }
-async function editUnpadResult(resultBuffer, padInfo, origW, origH) {
+async function editUnpadResult(resultBuffer, padInfo) {
     const meta = await sharp(resultBuffer).metadata();
     const outW = meta.width || padInfo.size;
     const outH = meta.height || padInfo.size;
-    const left = Math.max(0, Math.round(padInfo.region.left * outW));
-    const top = Math.max(0, Math.round(padInfo.region.top * outH));
-    const width = Math.max(1, Math.min(outW - left, Math.round(padInfo.region.width * outW)));
-    const height = Math.max(1, Math.min(outH - top, Math.round(padInfo.region.height * outH)));
+    const marginX = Math.round(padInfo.region.width * outW * 0.015);
+    const marginY = Math.round(padInfo.region.height * outH * 0.015);
+    const rawLeft = Math.round(padInfo.region.left * outW);
+    const rawTop = Math.round(padInfo.region.top * outH);
+    const rawWidth = Math.round(padInfo.region.width * outW);
+    const rawHeight = Math.round(padInfo.region.height * outH);
+    const left = Math.max(0, rawLeft + marginX);
+    const top = Math.max(0, rawTop + marginY);
+    const width = Math.max(1, Math.min(outW - left, rawWidth - marginX * 2));
+    const height = Math.max(1, Math.min(outH - top, rawHeight - marginY * 2));
     return sharp(resultBuffer)
         .extract({ left, top, width, height })
-        .resize(origW, origH)
+        .resize(padInfo.origW, padInfo.origH)
         .jpeg()
         .toBuffer();
 }
-async function editCallPredict(apiName, dataArray, token) {
+async function editCallInfer(paddedBuffer, prompt, token) {
+    const dataUri = `data:image/jpeg;base64,${paddedBuffer.toString('base64')}`;
+    const dataArray = [JSON.stringify([dataUri]), prompt, EDIT_LORA_ADAPTER, 0, true, 1, 4];
     const postRes = await axios.post(
-        `${EDIT_SPACE_BASE}/gradio_api/call/${apiName}`,
+        `${EDIT_SPACE_BASE}/gradio_api/call/edit_image`,
         { data: dataArray },
         { timeout: 30000, headers: { 'Content-Type': 'application/json', ...editAuthHeaders(token) } }
     );
     const eventId = postRes.data?.event_id;
-    if (!eventId) throw new Error('Space tidak mengembalikan event_id (kemungkinan quota GPU habis atau perlu login).');
-    const streamRes = await axios.get(`${EDIT_SPACE_BASE}/gradio_api/call/${apiName}/${eventId}`, {
+    if (!eventId) throw new Error('Space tidak mengembalikan event_id (kemungkinan quota GPU habis).');
+    const streamRes = await axios.get(`${EDIT_SPACE_BASE}/gradio_api/call/edit_image/${eventId}`, {
         responseType: 'text',
         timeout: 180000,
         headers: editAuthHeaders(token),
@@ -594,34 +737,40 @@ function editIsQuotaError(e) {
     const rawMsg = e?.response?.data ? JSON.stringify(e.response.data) : e.message;
     return e.message === 'QUOTA_HABIS' || status === 429 || /quota|zerogpu|gpu.{0,20}(exceed|limit)|rate.?limit/i.test(String(rawMsg));
 }
-async function editProcessWithToken(buffer, prompt, token) {
-    const cfg = await editGetSpaceConfig(token);
-    const dep = editFindEndpoint(cfg);
-    if (!dep) throw new Error('Endpoint API tidak ditemukan di /config space (struktur space mungkin berubah).');
-    const padInfo = await editPadToSquare(buffer);
-    const uploaded = await editUploadImage(padInfo.buffer, token);
-    const dataArray = [uploaded, null, prompt, 0, true, 1, 4, padInfo.size, padInfo.size];
-    const output = await editCallPredict(dep.api_name, dataArray, token);
-    const gallery = Array.isArray(output) ? output[0] : null;
-    const resultFile = Array.isArray(gallery) ? gallery[0]?.image : null;
-    const resultUrl = resultFile?.url || (resultFile?.path ? `${EDIT_SPACE_BASE}/gradio_api/file=${resultFile.path}` : null);
-    if (!resultUrl) throw new Error('Response space tidak berisi gambar hasil.');
-    const imgRes = await axios.get(resultUrl, { responseType: 'arraybuffer', timeout: 60000, headers: editAuthHeaders(token) });
-    const rawResult = Buffer.from(imgRes.data);
-    return editUnpadResult(rawResult, padInfo, padInfo.origW, padInfo.origH);
+function editExtractResultBuffer(output) {
+    const first = Array.isArray(output) ? output[0] : output;
+    const dataUri = first?.image;
+    if (!dataUri || typeof dataUri !== 'string') return null;
+    const match = dataUri.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/);
+    const b64 = match ? match[1] : dataUri;
+    try {
+        return Buffer.from(b64, 'base64');
+    } catch {
+        return null;
+    }
+}
+async function editProcessWithToken(prompt, token, padInfo) {
+    const output = await editCallInfer(padInfo.buffer, prompt, token);
+    const rawResult = editExtractResultBuffer(output);
+    if (!rawResult?.length) throw new Error('Response space tidak berisi gambar hasil.');
+    return editUnpadResult(rawResult, padInfo);
 }
 async function editImageWithPrompt(imageBuffer, prompt) {
+    const padInfo = await editPadToSquare(imageBuffer);
     const tokens = editGetTokenList();
+    if (!tokens.length) {
+        throw new Error('Space ini butuh token HuggingFace (anonim selalu gagal). Isi apiKeys.huggingface di config.js.');
+    }
     let lastErr;
     for (let i = 0; i < tokens.length; i++) {
         try {
-            const buffer = await editProcessWithToken(imageBuffer, prompt, tokens[i]);
+            const buffer = await editProcessWithToken(prompt, tokens[i], padInfo);
             return { buffer, status: 'ok' };
         }
         catch (e) {
             lastErr = e;
             if (!editIsQuotaError(e)) throw e;
-            console.log(`[AI-AGENT] editImage percobaan ${i === 0 ? 'anonim' : 'token index ' + (i - 1)} kena limit, coba berikutnya...`);
+            console.log(`[AI-AGENT] editImage token index ${i} kena limit, coba token berikutnya...`);
         }
     }
     throw lastErr || new Error('QUOTA_HABIS');
@@ -890,22 +1039,17 @@ async function toolAnalyzeError(errorText, context = '') {
         if (/permission denied|eacces/i.test(errorText)) detections.push('🔒 *Permission Denied* - tidak ada akses baca/tulis ke file/folder.');
         if (/export default|export \{/i.test(errorText)) detections.push('📤 *Export Error* - masalah pada format export module.');
         const analysisPrompt = `Kamu adalah expert software engineer spesialis Node.js dan JavaScript ESM untuk WhatsApp Bot development.
-
 Analisis error berikut dan berikan:
 1. Root Cause - penyebab utama error (1-2 kalimat)
 2. Lokasi - di bagian kode mana error kemungkinan terjadi
 3. Solusi - langkah konkret untuk fix (sertakan contoh kode jika perlu)
 4. Pencegahan - cara mencegah error ini terjadi lagi
-
 ${context ? `Konteks tambahan: ${context}\n` : ''}
-
 ERROR:
 \`\`\`
 ${errorText.substring(0, 2000)}
 \`\`\`
-
 ${detections.length ? `Pre-deteksi otomatis:\n${detections.join('\n')}\n` : ''}
-
 Jawab dalam Bahasa Indonesia baku (EYD, tanpa typo, tanpa kata yang tidak ada artinya), langsung ke poin, TANPA markdown (tanpa **, ##, dll - pakai emoji sebagai bullet, huruf kapital hanya untuk 1-3 kata kunci pendek jika perlu, JANGAN satu kalimat penuh huruf kapital). Sertakan contoh kode dalam code block kalau ada solusi berupa kode.`;
         const aiMessages = [
             { role: 'system', content: 'Kamu adalah expert Node.js/JavaScript engineer. Analisis error dengan akurat dan berikan solusi konkret.' },
@@ -1050,6 +1194,7 @@ async function executeTool(name, args, isMO, ctx = {}) {
     if (moOnly.has(name) && !isMO) return { text: '🔒 Tool ini hanya untuk Main Owner.' };
     switch (name) {
         case 'download_video': return toolDownloadVideo(args.url);
+        case 'search_video': return toolSearchVideo(args.query);
         case 'download_music': return toolDownloadMusic(args.query);
         case 'edit_image': return toolEditImage(ctx.imageBuffer, args.prompt);
         case 'list_files': return toolListFiles(args.dirpath || '.');
@@ -1093,7 +1238,7 @@ function remuxAudio(buffer, ext) {
 async function sendMedia(conn, chatId, media, quoted) {
     if (!media?.url && !media?.buffer) return;
     if (media.type === 'video') {
-        const buf = await axios.get(media.url, { responseType: 'arraybuffer', timeout: 60000 }).then((r) => Buffer.from(r.data));
+        const buf = media.buffer || await axios.get(media.url, { responseType: 'arraybuffer', timeout: 60000 }).then((r) => Buffer.from(r.data));
         await conn.sendMessage(chatId, { video: buf, caption: media.caption || '', mimetype: 'video/mp4' }, { quoted });
         return;
     }
@@ -1149,6 +1294,14 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 function hasCodeBlock(text) {
     return /```[a-zA-Z]*\n[\s\S]*?```/.test(text);
 }
+function hasMarkdownTable(text) {
+    if (!text) return false;
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length - 1; i++) {
+        if (lines[i].includes('|') && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1].trim())) return true;
+    }
+    return false;
+}
 function stripMarkdown(text) {
     if (!text) return text;
     const parts = text.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
@@ -1160,7 +1313,7 @@ function stripMarkdown(text) {
             .replace(/(?<!\w)\*([^*\n]+?)\*(?!\w)/g, '$1')
             .replace(/__([\s\S]*?)__/g, '$1')
             .replace(/(?<!\w)_([^_\n]+?)_(?!\w)/g, '$1')
-            .replace(/^[ \t]*[*-]\s+/gm, '🔹 ')
+            .replace(/^[ \t]*[*-]\s+/gm, '• ')
             .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
             .replace(/\*+/g, '');
     }).join('').trim();
@@ -1169,14 +1322,127 @@ async function sendPlainReply(conn, jid, text, quoted) {
     try {
         const clean = (text || '').trim();
         if (!clean) return false;
-        await conn.sendMessage(jid, { text: clean }, { quoted });
+        const rich = new AIRich(conn).addText(clean);
+        await rich.send(jid, { quoted });
         return true;
     } catch {
         return false;
     }
 }
+function stripCellMarkdown(cell) {
+    return cell
+        .replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+        .replace(/(?<!\w)\*([^*\n]+?)\*(?!\w)/g, '$1')
+        .replace(/__([\s\S]*?)__/g, '$1')
+        .replace(/(?<!\w)_([^_\n]+?)_(?!\w)/g, '$1')
+        .replace(/\*+/g, '')
+        .replace(/_+/g, '')
+        .trim();
+}
+function parseMarkdownTable(blockLines) {
+    const lines = blockLines.map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return null;
+    const isSepRow = (l) => /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(l);
+    if (!isSepRow(lines[1])) return null;
+    const parseRow = (l) => l.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => stripCellMarkdown(c.trim()));
+    const rows = [parseRow(lines[0])];
+    for (let i = 2; i < lines.length; i++) rows.push(parseRow(lines[i]));
+    return rows.length >= 2 ? rows : null;
+}
+function appendRichSegments(rich, text) {
+    if (!text || !text.trim()) return false;
+    const lines = text.split('\n');
+    let buffer = [];
+    let hasContent = false;
+    const flushText = () => {
+        const t = stripMarkdown(buffer.join('\n')).trim();
+        buffer = [];
+        if (t) { rich.addText(t); hasContent = true; }
+    };
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        const nextLine = lines[i + 1] || '';
+        const looksLikeTableStart = line.includes('|') && /^\s*\|?\s*:?-{2,}/.test(nextLine.trim());
+        if (looksLikeTableStart) {
+            let j = i;
+            const tableLines = [];
+            while (j < lines.length && lines[j].includes('|')) { tableLines.push(lines[j]); j++; }
+            const table = parseMarkdownTable(tableLines);
+            if (table) {
+                flushText();
+                rich.addTable(table);
+                hasContent = true;
+                i = j;
+                continue;
+            }
+        }
+        buffer.push(line);
+        i++;
+    }
+    flushText();
+    return hasContent;
+}
+function fillRichContent(rich, rawText) {
+    const clean = (rawText || '').trim();
+    if (!clean) return false;
+    const regex = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let hasContent = false;
+    let match;
+    while ((match = regex.exec(clean)) !== null) {
+        const before = clean.slice(lastIndex, match.index);
+        if (appendRichSegments(rich, before)) hasContent = true;
+        const lang = (match[1] || 'javascript').toLowerCase();
+        const code = match[2];
+        if (code && code.trim()) { rich.addCode(lang, code); hasContent = true; }
+        lastIndex = regex.lastIndex;
+    }
+    const after = clean.slice(lastIndex);
+    if (appendRichSegments(rich, after)) hasContent = true;
+    return hasContent;
+}
+async function sendRichReply(conn, jid, rawText, quoted) {
+    try {
+        const rich = new AIRich(conn);
+        if (!fillRichContent(rich, rawText)) return false;
+        await rich.send(jid, { quoted });
+        return true;
+    } catch {
+        return false;
+    }
+}
+async function sendAgentReply(conn, jid, text, quoted) {
+    const clean = (text || '').trim();
+    if (!clean) return false;
+    const needsRich = hasCodeBlock(clean) || hasMarkdownTable(clean);
+    const sent = needsRich
+        ? await sendRichReply(conn, jid, clean, quoted)
+        : await sendPlainReply(conn, jid, clean, quoted);
+    if (!sent) {
+        try { await conn.sendMessage(jid, { text: clean }, { quoted }); return true; }
+        catch { return false; }
+    }
+    return true;
+}
+async function finalizeLiveReply(liveRich, conn, jid, text, quoted) {
+    if (liveRich) {
+        try {
+            liveRich.setTitle('');
+            liveRich.delete('status');
+            if (fillRichContent(liveRich, text)) {
+                await liveRich.sendEdit(undefined, undefined, {});
+                return true;
+            }
+        } catch (e) {
+            console.error('[AI-AGENT] gagal finalize live reply, fallback ke pesan baru:', e.message);
+        }
+    }
+    return sendAgentReply(conn, jid, text, quoted);
+}
 const toolLoadMsg = {
     download_video: '🎬 Sedang mengunduh video...',
+    search_video: '🔎 Sedang mencari video...',
     download_music: '🎵 Sedang mencari lagu...',
     edit_image: '🎨 Sedang mengedit gambar...',
     list_files: '📁 Membaca struktur folder server...',
@@ -1190,7 +1456,7 @@ const toolLoadMsg = {
     get_plugin: '📄 Membuka file...',
     run_backup: '📦 Membuat backup...',
 };
-const DIRECT_SEND_TOOLS = new Set(['write_plugin', 'edit_file', 'scan_and_count', 'analyze_error', 'run_backup', 'download_music', 'download_video', 'edit_image']);
+const DIRECT_SEND_TOOLS = new Set(['write_plugin', 'edit_file', 'scan_and_count', 'analyze_error', 'run_backup', 'edit_image']);
 const SILENT_TOOLS = new Set(['read_file', 'list_files', 'check_logs', 'get_plugin']);
 const handler = async (m, { conn, participants }) => {
     if (!checkMainOwner(m, participants)) return;
@@ -1221,8 +1487,9 @@ handler.onText = async (m, { conn, participants }) => {
         if (!text) return false;
         const trimmed = text.trim();
         if (!trimmed) return false;
-        if (PREFIX_CHARS.has(trimmed[0])) return false;
-        if (/^[°•π÷×¶∆£¢€¥®™+✓_=|~!?@#$%^&©^,🐤🗿]/i.test(trimmed)) return false;
+        const looksLikeCommandAttempt = PREFIX_CHARS.has(trimmed[0]) && !trimmed.includes('\n') && trimmed.length <= 40;
+        if (looksLikeCommandAttempt) return false;
+        if (!trimmed.includes('\n') && trimmed.length <= 40 && /^[°•π÷×¶∆£¢€¥®™+✓_=|~!?@#$%^&©^,🐤🗿]/i.test(trimmed)) return false;
         const isMO = checkMainOwner(m, participants);
         if (!isMO) return false;
         const userId = m.sender || m.key?.participant || '';
@@ -1233,12 +1500,23 @@ handler.onText = async (m, { conn, participants }) => {
         lockKey = `${m.chat}:${userId}`;
         if (globalThis.__aiAgentLock__.has(lockKey)) return false;
         globalThis.__aiAgentLock__.add(lockKey);
+        const quotedText = (m.quoted?.text || '').trim();
         const media = findMediaMessage(m);
-        const hasImage = media?.type === 'imageMessage';
+        const isImageMsg = media?.type === 'imageMessage';
+        const isStickerMsg = media?.type === 'stickerMessage';
+        const looksLikeCodeOrLongText = (trimmed.length > 150 && trimmed.includes('\n'))
+            || (quotedText.length > 150 && quotedText.includes('\n'));
+        const hasImage = (isImageMsg || isStickerMsg) && !(media?.source === 'quoted' && looksLikeCodeOrLongText);
+        const aiText = quotedText ? `${quotedText}\n\n${trimmed}` : text;
         let imageBuffer = null;
         if (hasImage) {
-            try { imageBuffer = await downloadMessageMedia(m, conn); }
-            catch (e) { console.error('[AI-AGENT] gagal download gambar:', e.message); }
+            try {
+                const rawBuffer = await downloadMessageMedia(m, conn);
+                if (rawBuffer?.length) {
+                    imageBuffer = isStickerMsg ? await sharp(rawBuffer).png().toBuffer() : rawBuffer;
+                }
+            }
+            catch (e) { console.error('[AI-AGENT] gagal download/convert media:', e.message); }
         }
         const editImageMatch = hasImage && imageBuffer && /\b(edit|ubah|ubahin|editin|ganti|gantiin|hapus|hilangkan|tambah(?:in|kan)?)\b/i.test(trimmed);
         if (editImageMatch) {
@@ -1247,7 +1525,7 @@ handler.onText = async (m, { conn, participants }) => {
             const result = await toolEditImage(imageBuffer, editPrompt);
             pushHistory(histKey, 'user', text);
             pushHistory(histKey, 'assistant', result.text);
-            await conn.sendMessage(m.chat, { text: result.text }, { quoted });
+            await sendAgentReply(conn, m.chat, result.text, quoted);
             if (result.media) {
                 try { await sendMedia(conn, m.chat, result.media, quoted); }
                 catch (e) { console.error('[AI-AGENT] media error:', e.message); }
@@ -1266,7 +1544,7 @@ handler.onText = async (m, { conn, participants }) => {
                 const result = await toolDownloadMusic(query);
                 pushHistory(histKey, 'user', text);
                 pushHistory(histKey, 'assistant', result.text);
-                await conn.sendMessage(m.chat, { text: result.text }, { quoted });
+                await sendAgentReply(conn, m.chat, result.text, quoted);
                 if (result.media) {
                     try { await sendMedia(conn, m.chat, result.media, quoted); }
                     catch (e) { console.error('[AI-AGENT] media error:', e.message); }
@@ -1280,7 +1558,7 @@ handler.onText = async (m, { conn, participants }) => {
             const result = await toolDownloadVideo(urlMatch[0]);
             pushHistory(histKey, 'user', text);
             pushHistory(histKey, 'assistant', result.text);
-            await conn.sendMessage(m.chat, { text: result.text }, { quoted });
+            await sendAgentReply(conn, m.chat, result.text, quoted);
             if (result.media) {
                 try { await sendMedia(conn, m.chat, result.media, quoted); }
                 catch (e) { console.error('[AI-AGENT] media error:', e.message); }
@@ -1293,7 +1571,7 @@ handler.onText = async (m, { conn, participants }) => {
                 const result = await toolRunBackup(conn, m.chat);
                 pushHistory(histKey, 'user', text);
                 pushHistory(histKey, 'assistant', result.text);
-                await conn.sendMessage(m.chat, { text: result.text }, { quoted });
+                await sendAgentReply(conn, m.chat, result.text, quoted);
                 return true;
             }
             const gpMatch = trimmed.match(/\b(?:cek|lihat|liat|buka|baca)\s+(?:isi\s+)?(?:fitur|plugin|kode|file)\s+([a-z0-9_\-\/]+)/i);
@@ -1303,19 +1581,20 @@ handler.onText = async (m, { conn, participants }) => {
                 pushHistory(histKey, 'user', text);
                 pushHistory(histKey, 'assistant', gpResult.text);
                 const sent = await sendPlainReply(conn, m.chat, gpResult.text, quoted);
-                if (!sent) await conn.sendMessage(m.chat, { text: gpResult.text }, { quoted });
+                if (!sent) await sendAgentReply(conn, m.chat, gpResult.text, quoted);
                 return true;
             }
         }
         const systemPrompt = isMO ? SYSTEM_PROMPT_BASE + SYSTEM_PROMPT_MAIN_OWNER : SYSTEM_PROMPT_BASE;
-        const tools = isMO ? [...TOOLS_BASE, ...TOOLS_MAIN_OWNER_EXTRA] : TOOLS_BASE;
+        const tools = (isMO ? [...TOOLS_BASE, ...TOOLS_MAIN_OWNER_EXTRA] : TOOLS_BASE)
+            .filter((t) => !(looksLikeCodeOrLongText && t.function.name === 'download_video'));
         const history = getHistory(histKey);
         const userContent = (hasImage && imageBuffer)
             ? [
-                { type: 'text', text },
+                { type: 'text', text: aiText },
                 { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBuffer.toString('base64')}` } },
             ]
-            : text;
+            : aiText;
         const messages = [
             { role: 'system', content: systemPrompt },
             ...history,
@@ -1327,14 +1606,27 @@ handler.onText = async (m, { conn, participants }) => {
         let finalResponseText = '';
         let rawResponseText = '';
         const collectedResults = [];
+        const THINKING_TEXT = 'Thinking...';
+        let liveRich = null;
+        try {
+            liveRich = new AIRich(conn).setTitle(THINKING_TEXT).addText('\u200B', { id: 'status' });
+            await liveRich.send(m.chat, { quoted });
+        } catch (e) {
+            liveRich = null;
+        }
         const sendLoad = async (toolName, toolArgs) => {
             if (SILENT_TOOLS.has(toolName)) return;
-            const loadText = toolName === 'write_plugin'
-                ? `📝 Sedang menulis plugin ${toolArgs.filename || ''}...`
-                : toolName === 'edit_file'
-                ? `✏️ Sedang mengedit file ${toolArgs.filepath || ''}...`
-                : toolLoadMsg[toolName] || `🔧 Memproses ${toolName}...`;
-            await conn.sendMessage(m.chat, { text: loadText }, { quoted });
+            if (liveRich) {
+                try {
+                    liveRich.setTitle(THINKING_TEXT);
+                    liveRich.addText('\u200B', { replace: 'status', id: 'status' });
+                    await liveRich.sendEdit(undefined, undefined, {});
+                    return;
+                } catch (e) {
+                    liveRich = null;
+                }
+            }
+            await conn.sendMessage(m.chat, { text: THINKING_TEXT }, { quoted });
         };
         const extractToolCall = (msg) => {
             if (msg.tool_calls?.length) {
@@ -1352,16 +1644,20 @@ handler.onText = async (m, { conn, participants }) => {
                 ...messages,
                 {
                     role: 'user',
-                    content: `${text}\n\n--- DATA DARI SERVER ---\n${ctx}\n--- SELESAI ---\n\nBerdasarkan data di atas, jawab pertanyaan user secara langsung dan profesional. Jangan sebut nama tool atau function.`,
+                    content: `${aiText}\n\n--- DATA DARI SERVER ---\n${ctx}\n--- SELESAI ---\n\nBerdasarkan data di atas, jawab pertanyaan user secara langsung dan profesional. Jangan sebut nama tool atau function.`,
                 },
             ];
         };
-        let currentMsg = await callOpenRouter(messages, tools);
-        if (!currentMsg) { return true; }
+        const activeModel = (hasImage && imageBuffer) ? VISION_MODELS : MODEL_ID;
+        let currentMsg = await callOpenRouter(messages, tools, activeModel);
+        if (!currentMsg) {
+            await finalizeLiveReply(liveRich, conn, m.chat, 'Maaf, model AI lagi gak bisa dihubungi. Coba lagi sebentar lagi ya.', quoted);
+            return true;
+        }
         for (let step = 0; step < MAX_CHAIN; step++) {
             const tc = extractToolCall(currentMsg);
             if (!tc) {
-                rawResponseText = (currentMsg.content || '').replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '').replace(/<\/assistant>/gi, '').trim();
+                rawResponseText = stripToolCallTags(currentMsg.content || '');
                 finalResponseText = stripMarkdown(rawResponseText);
                 break;
             }
@@ -1370,10 +1666,10 @@ handler.onText = async (m, { conn, participants }) => {
             const toolResult = await executeTool(toolName, toolArgs, isMO, { conn, chat: m.chat, imageBuffer });
             if (toolResult.media && !mediaToSend) mediaToSend = toolResult.media;
             if (DIRECT_SEND_TOOLS.has(toolName)) {
-                pushHistory(histKey, 'user', text);
+                pushHistory(histKey, 'user', aiText);
                 pushHistory(histKey, 'assistant', toolResult.text);
                 await conn.sendPresenceUpdate('paused', m.chat);
-                await conn.sendMessage(m.chat, { text: toolResult.text }, { quoted });
+                await finalizeLiveReply(liveRich, conn, m.chat, toolResult.text, quoted);
                 if (mediaToSend) {
                     try { await sendMedia(conn, m.chat, mediaToSend, quoted); }
                     catch (e) { console.error('[AI-AGENT] media error:', e.message); }
@@ -1387,20 +1683,29 @@ handler.onText = async (m, { conn, participants }) => {
                 if (allMatches.length === 1) filePath = allMatches[0][1];
                 else if (allMatches.length > 1 && allMatches[0][2]) filePath = allMatches[0][1];
                 if (filePath) {
-                    await conn.sendMessage(m.chat, { text: `📄 Membuka ${filePath}...` }, { quoted });
+                    if (liveRich) {
+                        try {
+                            liveRich.setTitle(THINKING_TEXT);
+                            liveRich.addText('\u200B', { replace: 'status', id: 'status' });
+                            await liveRich.sendEdit(undefined, undefined, {});
+                        } catch (e) {
+                            liveRich = null;
+                        }
+                    }
+                    if (!liveRich) await conn.sendMessage(m.chat, { text: THINKING_TEXT }, { quoted });
                     const readResult = await toolReadFile(filePath);
                     collectedResults.push({ name: `read_file(${filePath})`, result: readResult.text || '' });
                 }
-                currentMsg = await callOpenRouter(buildFollowUp(), null);
+                currentMsg = await callOpenRouter(buildFollowUp(), null, activeModel);
                 if (!currentMsg) break;
                 continue;
             }
             const nextMessages = [
                 ...messages,
-                { role: 'assistant', content: (currentMsg.content || '').replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '').trim() || `[called ${toolName}]` },
+                { role: 'assistant', content: stripToolCallTags(currentMsg.content || '') || `[called ${toolName}]` },
                 { role: 'user', content: `[HASIL ${toolName.toUpperCase()}]:\n${toolResult.text}\n\nLanjutkan atau jawab pertanyaan user jika sudah cukup data.` },
             ];
-            currentMsg = await callOpenRouter(nextMessages, tools);
+            currentMsg = await callOpenRouter(nextMessages, tools, activeModel);
             if (!currentMsg) break;
         }
         if (!finalResponseText) finalResponseText = '...';
@@ -1411,12 +1716,10 @@ handler.onText = async (m, { conn, participants }) => {
         }
         if (!rawResponseText) rawResponseText = finalResponseText;
         finalResponseText = stripMarkdown(finalResponseText);
-        pushHistory(histKey, 'user', text);
+        pushHistory(histKey, 'user', aiText);
         pushHistory(histKey, 'assistant', finalResponseText);
-        await delay(Math.min(3000, 500 + finalResponseText.length * 15));
         await conn.sendPresenceUpdate('paused', m.chat);
-        const textToSend = hasCodeBlock(rawResponseText) ? rawResponseText : finalResponseText;
-        const sent = await sendPlainReply(conn, m.chat, textToSend, quoted);
+        const sent = await finalizeLiveReply(liveRich, conn, m.chat, rawResponseText || finalResponseText, quoted);
         if (!sent) await conn.sendMessage(m.chat, { text: finalResponseText }, { quoted });
         if (mediaToSend) {
             try { await sendMedia(conn, m.chat, mediaToSend, quoted); }
