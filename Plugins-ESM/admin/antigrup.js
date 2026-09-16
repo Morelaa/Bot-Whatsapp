@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import db from '../../Database/db.js';
 import {
     isLidJid,
@@ -103,7 +108,7 @@ async function act(sock, m, reason, senderJid) {
     try { await deleteMsg(sock, m); } catch (e) { console.error('[ANTIGRUP] Delete gagal:', e?.message); }
     await addWarn(sock, m, reason, senderJid);
 }
-function isBotMessage(m) {
+export function isBotMessage(m) {
     const pushName = m.pushName || '';
     const mtype = m.type || '';
     const msg = m.message || {};
