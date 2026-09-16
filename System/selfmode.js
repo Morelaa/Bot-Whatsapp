@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import { getGroup, updateGroup, getAllGroups } from '../Database/db.js';
 import * as kv from '../Database/kvstore.js';
 import config from '../config.js';
@@ -10,7 +15,6 @@ function readGlobal() {
 function writeGlobal(active) {
     try { kv.set(KEY_GLOBAL, !!active); } catch { }
 }
-
 export function isSelfMode(groupJid) {
     if (!groupJid) return false;
     const groupData = getGroup(groupJid);
@@ -28,7 +32,6 @@ export function setSelfMode(groupJid, value) {
 export function isSelfModeGlobal() {
     return readGlobal();
 }
-
 export function setSelfModeGlobal(value, applyToAll = true) {
     writeGlobal(value);
     if (!applyToAll) return 0;
