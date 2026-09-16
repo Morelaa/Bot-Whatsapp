@@ -1,28 +1,32 @@
 <div align="center">
 
-  # 🍡 MORELA BOT v0.0.1
-  ### ⚡ WhatsApp Bot Engine · Owner / Admin / Premium Permission System ⚡
+  # 🍡 MORELA BOT
+  ### ⚡ WhatsApp Bot Engine · AI Agent · Multi-Style UI · Owner/Admin/Premium Permission System ⚡
 
   [![Node.js](https://img.shields.io/badge/Node.js-v18%2B-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
   [![Baileys](https://img.shields.io/badge/@itsliaaa/baileys-ESM-blueviolet?style=for-the-badge&logo=whatsapp&logoColor=white)](https://www.npmjs.com/package/@itsliaaa/baileys)
   [![Database](https://img.shields.io/badge/Database-better--sqlite3-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://github.com/WiseLibs/better-sqlite3)
+  [![MessageBuilder](https://img.shields.io/badge/MessageBuilder-v4.6-ff69b4?style=for-the-badge)](#-messagebuilder-v46--engine-tampilan-pesan)
   [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
   [![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)](#)
 
   <p align="center">
-    <b>WhatsApp Bot base plain JavaScript (ESM) dengan plugin hot-reload, database SQLite lokal, dan sistem izin berlapis.</b>
+    <b>WhatsApp Bot base plain JavaScript (ESM) dengan plugin hot-reload, database SQLite lokal, sistem izin berlapis, dan AI Agent yang bisa nulis pluginnya sendiri.</b>
     <br />
-    <i>99+ command di 9 kategori, mode eval/shell khusus main owner, welcome/goodbye otomatis, dan branded reply.</i>
+    <i>104 command aktif di 9 kategori, engine tampilan pesan custom (MessageBuilder v4.6), 4 gaya menu + 5 gaya reply + 2 gaya owner card, mode eval/shell khusus main owner.</i>
   </p>
 
   ---
 
   [🛠️ Tech Stack](#-tech-stack--teknologi) •
   [✨ Fitur Unggulan](#-fitur-unggulan) •
+  [🎨 MessageBuilder](#-messagebuilder-v46--engine-tampilan-pesan) •
+  [🖼️ Gaya Tampilan](#️-gaya-tampilan-menu--owner--reply) •
   [📂 Struktur Project](#-struktur-project) •
   [🚀 Instalasi](#-instalasi--memulai) •
   [📲 Pairing WhatsApp](#-menghubungkan-whatsapp) •
-  [🧩 Menulis Plugin](#-menulis-plugin-baru)
+  [🧩 Menulis Plugin](#-menulis-plugin-baru) •
+  [🕒 Sewa Bot](#-sewa-bot-owner--sewabotjs--delsewajs)
 
 </div>
 
@@ -41,17 +45,20 @@
   <img src="https://img.shields.io/badge/Sharp-99CC00?style=for-the-badge" alt="Sharp" />
   <img src="https://img.shields.io/badge/Canvas-000000?style=for-the-badge" alt="Canvas" />
   <img src="https://img.shields.io/badge/FFmpeg-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg" />
-  <img src="https://img.shields.io/badge/Tesseract.js-OCR-orange?style=for-the-badge" alt="Tesseract.js" />
+  <img src="https://img.shields.io/badge/OpenRouter-AI_Agent-6236FF?style=for-the-badge" alt="OpenRouter" />
+  <img src="https://img.shields.io/badge/HuggingFace-AI_Image-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace" />
 </p>
 
 | Komponen | Teknologi / Library | Deskripsi |
 | :--- | :--- | :--- |
 | **Bot Engine Core** | `@itsliaaa/baileys` (ESM) | Library WhatsApp Multi-Device Protocol socket handler |
-| **Database** | `better-sqlite3` | Penyimpanan lokal: users, groups, group_members, dll. Tanpa server DB eksternal |
+| **Database** | `better-sqlite3` | Penyimpanan lokal: `users`, `groups`, `group_members`, `lid_map`, `stats`, `usage_limit`, `chat_count`, `kv_store` |
 | **Media Processing** | `sharp`, `canvas`, `fluent-ffmpeg`, `jimp` | Edit gambar, generate card/thumbnail, konversi audio/video, sticker |
+| **AI Agent** | `axios` ke **OpenRouter** (model gratis, fallback berantai) | Chat + tool-calling untuk `Plugins-ESM/ai/aiagent.js` |
+| **AI Image** | `axios` ke **Hugging Face Space** (Qwen Image Edit LoRA, Kroma Krea2) | `aiedit.js` (edit foto) & `nanobanana.js` (generate foto) |
 | **OCR & Dokumen** | `tesseract.js`, `pdfkit` | Baca teks dari gambar, generate PDF |
 | **Runtime & Process** | `Node.js v18+` | Dijalankan lewat `launcher.js` (supervisor auto-restart) atau langsung `utama.js` |
-| **Utility** | `axios`, `cheerio`, `luxon`, `node-cron`, `node-cache` | HTTP client, scraping, waktu, scheduler, cache in-memory |
+| **Utility** | `axios`, `cheerio`, `luxon`, `node-cron`, `node-cache`, `archiver`, `yt-search` | HTTP client, scraping, waktu, scheduler, cache in-memory, zip backup, pencarian YouTube |
 
 <br />
 
@@ -62,8 +69,28 @@
 <table>
   <tr>
     <td width="50%">
-      <h3>🧩 99+ Command / 9 Kategori</h3>
-      <p>Plugin modular per folder: <code>owner</code>, <code>admin</code>, <code>tools</code>, <code>sticker</code>, <code>downloader</code>, <code>games</code>, <code>maker</code>, <code>ai</code>, <code>info</code>. Tinggal drop file baru, langsung ke-load.</p>
+      <h3>🤖 AI Agent Self-Coding</h3>
+      <p><code>Plugins-ESM/ai/aiagent.js</code> - dipicu wake word <b>"morela"</b> (bukan command biasa), khusus <b>main owner</b>. Bisa <i>tool-calling</i>: nulis plugin baru (<code>write_plugin</code>), edit file (<code>edit_file</code>), baca log & analisis error (<code>check_logs</code>, <code>analyze_error</code>), cari/lihat plugin (<code>find_plugin</code>, <code>get_plugin</code>), backup project (<code>run_backup</code>), sampai download video/musik & edit gambar langsung dari chat. Model dari OpenRouter dengan daftar fallback berantai kalau satu model kena rate-limit.</p>
+    </td>
+    <td width="50%">
+      <h3>🎨 AI Image: Edit & Generate</h3>
+      <p><code>aiedit.js</code> (khusus premium) edit foto pakai model Qwen Image Edit LoRA lewat Hugging Face Space - reply foto + prompt. <code>nanobanana.js</code> generate gambar baru dari teks pakai model Kroma Krea2 LoRA. Keduanya pakai sistem token Hugging Face yang bisa multi-akun (auto-rotate kalau kena limit).</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🖌️ Multi-Style UI System</h3>
+      <p>3 command khusus owner buat ganti "kulit" tampilan bot tanpa sentuh kode: <code>.setmenu</code> (4 gaya), <code>.setreplystyle</code> (5 gaya), <code>.setownerstyle</code> (2 gaya). Semua dipilih lewat tombol <i>single_select</i> interaktif, bukan cuma ketik manual.</p>
+    </td>
+    <td width="50%">
+      <h3>🕒 Sewa Bot Otomatis</h3>
+      <p><code>.sewabot</code> / <code>.delsewa</code> - atur masa sewa bot per grup lewat pemilihan grup via tombol interaktif, lalu ketik tanggal jatuh tempo. Scheduler background otomatis ngingetin owner H-3 sebelum habis dan bikin bot keluar sendiri kalau gak diperpanjang. Khusus owner.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🧩 104 Command / 9 Kategori</h3>
+      <p>Plugin modular per folder: <code>owner</code> (23), <code>admin</code> (18), <code>tools</code> (21), <code>sticker</code> (13), <code>downloader</code> (8), <code>games</code> (9), <code>maker</code> (4), <code>ai</code> (3), <code>info</code> (5). Tinggal drop file baru, langsung ke-load.</p>
     </td>
     <td width="50%">
       <h3>🔄 Hot-Reload Plugin</h3>
@@ -72,8 +99,8 @@
   </tr>
   <tr>
     <td width="50%">
-      <h3>🛡️ Izin Berlapis</h3>
-      <p>Role-based: <b>Main Owner</b>, <b>Owner</b>, <b>Admin Grup</b>, <b>Premium</b>, dan gate registrasi (<code>.daftar</code>) wajib secara default buat semua command.</p>
+      <h3>🛡️ Izin Berlapis + Suite Anti-Spam</h3>
+      <p>Role-based: <b>Main Owner</b>, <b>Owner</b>, <b>Admin Grup</b>, <b>Premium</b>, gate registrasi (<code>.daftar</code>) wajib default. Plus suite moderasi grup: <code>antilink</code>, <code>antivirtex</code>, <code>antijoki</code>, <code>antiswgc</code>, <code>anticatalog</code>/<code>antibug</code>, <code>ban/unban</code>.</p>
     </td>
     <td width="50%">
       <h3>♻️ Auto-Restart & Crash Guard</h3>
@@ -83,7 +110,7 @@
   <tr>
     <td width="50%">
       <h3>🎉 Welcome & Goodbye Otomatis</h3>
-      <p>Terpicu dari event <code>group-participants.update</code>: kartu bergambar (foto profil member/bot) + tombol <b>Menu</b> & <b>Daftar</b>/<b>Profil</b>.</p>
+      <p>Terpicu dari event <code>group-participants.update</code>: kartu bergambar (<code>ButtonV2</code>, foto profil member/bot) + tombol <b>Menu</b> & <b>Daftar</b>/<b>Profil</b>.</p>
     </td>
     <td width="50%">
       <h3>💻 Mode Eval / Shell (Main Owner)</h3>
@@ -91,6 +118,54 @@
     </td>
   </tr>
 </table>
+
+<br />
+
+---
+
+## 🎨 MessageBuilder (v4.6) - Engine Tampilan Pesan
+
+`Library/MessageBuilder.js` adalah engine internal buat merakit semua jenis pesan interaktif WhatsApp (native flow, button, card, sampai gaya "AI rich response"). Dipakai hampir semua plugin: `setmenu`, `setreplystyle`, `welcome`, `goodbye`, `aiagent`, `sewabot`, dll. Isinya 5 class:
+
+| Class | Fungsi | Fitur Utama |
+|---|---|---|
+| **`Toolkit`** | Kumpulan static utility, dipakai internal semua class lain | `resize()` (resize gambar via sharp), `fetchBuffer()`, `resolveMedia()` (normalisasi input url/buffer/base64 → url upload WA), `replyRaw()` (kirim reply manual dengan quote persis dari pesan asli), `getMp4Duration()` & `getMp4Preview()` (baca durasi & screenshot frame video pakai ffmpeg tanpa file temp), `extractIE()` (parser sintaks `[teks](url)` / `[](url)` jadi *inline entity* hyperlink/citation/latex) |
+| **`BaseBuilder`** | Parent class abstrak, diwarisi 4 builder di bawah | `setTitle()`, `setSubtitle()`, `setBody()`, `setFooter()`, `setContextInfo()`, `addPayload()` - semua *chainable* (return `this`) |
+| **`Button`** (v1) | Native flow message generasi baru: single_select dengan section/row, quick reply, url, call, copy, location, address, reminder | `addSelection()` + `makeSection()` + `makeRow()` buat list bertingkat, `addUrl()`, `addCopy()`, `addCall()`, `addReply()`, `setImage()`/`setVideo()`/`setDocument()` untuk header media, `send()` langsung relay ke WA |
+| **`ButtonV2`** | Gaya button klasik (`buttonsMessage`), lebih ringan, dipakai di welcome/goodbye | `addButton()` (quick button teks), `addRawButton()` (custom object), `setThumbnail()` (auto resize 300x300), `setMedia()` untuk header custom |
+| **`Carousel`** | Rangkaian card geser (tiap card wajib ada media header) | `addCard()` (terima 1 card atau array), otomatis validasi tiap card punya `hasMediaAttachment`, hasil pesan di-cache ke `kv_store` buat dipakai ulang |
+| **`AIRich`** | Bikin balasan gaya "AI rich response" (bubble forwarded dari bot AI, mirip Meta AI) | `addText()` (markdown + hyperlink/citation/latex), `addCode()` (syntax highlighter built-in untuk JS/TS/Python/Java/Go/C/C++/PHP/Rust/HTML/Bash/Markdown), `addTable()`, `addImage()`, `addVideo()`, `addProduct()`, `addPost()`, `addReels()`, `addSource()`, `addTip()`, `addSuggest()` (tombol saran lanjutan) - tiap section bisa layout `Single`/`HScroll`/`ActionRow` |
+
+<br />
+
+---
+
+## 🖼️ Gaya Tampilan: Menu / Owner / Reply
+
+Semua diatur lewat command interaktif (tombol *single_select*), tersimpan permanen via `System/*style.js`.
+
+### `.setmenu` - 4 Gaya Menu
+| Gaya | Nama | Tampilan |
+|---|---|---|
+| **v1** | Menu Gambar + Aksi | Menu bergambar dengan tombol kategori, beli, telepon, dan owner |
+| **v2** | Menu Foto Profil | Menu dengan foto profil pengirim dan daftar tombol kategori |
+| **v3** | Menu Interaktif | Menu bergambar dengan tombol kategori dan tombol donasi |
+| **v4** | Menu Card + Badge | Menu bergambar dengan badge card serta tombol menu dan info |
+
+### `.setreplystyle` - 5 Gaya Balasan
+| Gaya | Nama | Tampilan |
+|---|---|---|
+| **v1** | Link Preview Card | Balasan tampil sebagai link preview kosong dengan kutipan kontak bot |
+| **v2** | Native Flow | Balasan interaktif tanpa gambar dengan kutipan undangan grup |
+| **v3** | Quoted Order Card | Balasan interaktif dengan kutipan card produk bergambar |
+| **v4** | Order Card Besar | Balasan berupa card produk besar bergambar dengan badge kecil |
+| **v5** | Link Card + Order | Gabungan V1 & V3: link preview kosong dengan kutipan card produk bergambar |
+
+### `.setownerstyle` - 2 Gaya Kartu Owner
+| Gaya | Nama | Tampilan |
+|---|---|---|
+| **v1** | Contact Card | Gaya kartu kontak (vCard) simpel |
+| **v2** | Interactive Booking Card | Gaya kartu profil dengan tombol/native flow |
 
 <br />
 
@@ -104,22 +179,22 @@
  ├── 📄 launcher.js             # 🔀 Supervisor proses (auto-restart + crash guard)
  ├── 📄 handler.js              # 📩 Router pesan + middleware + pengecekan izin otomatis
  ├── 📄 config.js               # ⚙️ Semua konfigurasi bot (nama, owner, prefix, API key)
- ├── 📁 Core/                   # 🧠 Event bus, store (cache + tulis DB), permission, logging
- ├── 📁 System/                 # 🛡️ Self mode, private mode, cek owner, eval/shell (superowner.js)
- ├── 📁 Library/                # 🛠️ Resolve LID/JID, MessageBuilder, sticker, canvas, util lain
- ├── 📁 Database/                # 💾 SQLite (better-sqlite3): users, groups, group_members
- ├── 📁 Plugins-ESM/            # 🧩 99+ command, per folder kategori
- │   ├── 📁 owner/              # 👑 Owner Control & System Settings
- │   ├── 📁 admin/              # 🛡️ Moderasi grup, welcome/goodbye, antilink
- │   ├── 📁 tools/              # 🔧 Utility umum
- │   ├── 📁 sticker/            # 🖼️ Sticker maker
- │   ├── 📁 downloader/         # 📥 TikTok, YouTube, dst
- │   ├── 📁 games/              # 🎮 Game & RPG
- │   ├── 📁 maker/              # 🎨 Image/text maker
- │   ├── 📁 ai/                 # 🤖 AI chat
- │   └── 📁 info/               # ℹ️ Info & menu
+ ├── 📁 Core/                   # 🧠 Event bus, store (cache + tulis DB), permission, logging, branded reply
+ ├── 📁 System/                 # 🛡️ Self mode, private mode, cek owner, eval/shell, menu/owner/reply style
+ ├── 📁 Library/                # 🛠️ Resolve LID/JID, MessageBuilder v4.6, sticker, canvas, download helper
+ ├── 📁 Database/                # 💾 SQLite (better-sqlite3): users, groups, group_members, stats, usage_limit, chat_count, kv_store
+ ├── 📁 Plugins-ESM/            # 🧩 104 command, per folder kategori
+ │   ├── 📁 owner/              # 👑 23 command - kontrol bot & sistem (termasuk style & sewa bot)
+ │   ├── 📁 admin/              # 🛡️ 18 command - moderasi grup, welcome/goodbye, anti-spam
+ │   ├── 📁 tools/              # 🔧 21 command - utility umum & registrasi
+ │   ├── 📁 sticker/            # 🖼️ 13 command - sticker maker (termasuk brat & AI)
+ │   ├── 📁 downloader/         # 📥 8 command - TikTok, YouTube, IG, FB, Mediafire
+ │   ├── 📁 games/              # 🎮 9 command - mini-game grup
+ │   ├── 📁 maker/              # 🎨 4 command - image/text maker
+ │   ├── 📁 ai/                 # 🤖 3 command - AI agent, edit gambar, generate gambar
+ │   └── 📁 info/               # ℹ️ 5 command - info & menu
  ├── 📁 data/                   # 💾 File database SQLite + soal game JSON
- ├── 📁 media/                  # 🖼️ Aset gambar (tambahkan sendiri kalau perlu)
+ ├── 📁 media/                  # 🖼️ Aset gambar (register.jpg, brat assets, dll)
  └── 📁 session/                # 🔑 Kredensial login WhatsApp (auto-generate)
 ```
 
@@ -139,7 +214,7 @@ npm install
 ```
 
 ### 3. Konfigurasi
-Semua konfigurasi ada langsung di `config.js` (bukan `.env`). Isi nomor owner, prefix, API key, dll di sana sebelum menjalankan bot.
+Semua konfigurasi ada langsung di `config.js` (bukan `.env`). Isi nomor owner, prefix, API key (OpenRouter untuk AI agent, Hugging Face untuk AI image), dll di sana sebelum menjalankan bot.
 
 ### 4. Jalankan Bot
 ```bash
@@ -204,7 +279,36 @@ export default handler;
 
 Pengecekan akses & pesan penolakan sudah dihandle otomatis oleh `handler.js`, plugin tinggal pasang flag. File otomatis ke-reload saat disave (`pluginHotReload: true`). **Tapi kalau ada perubahan yang gak nyangkut setelah save, restart proses bot manual, jangan cuma andalin hot-reload.**
 
-Plugin juga bisa punya `handler.onText(m, { conn })` untuk menangkap pesan tanpa prefix (return `true` kalau sudah ditangani).
+Plugin juga bisa punya `handler.onText(m, { conn })` untuk menangkap pesan tanpa prefix (return `true` kalau sudah ditangani) - ini yang dipakai `aiagent.js` buat nangkep wake word "morela".
+
+> 💡 Tips: plugin `aiagent.js` (khusus main owner, panggil dengan kata "morela") bisa disuruh langsung nulis plugin baru buat kamu lewat tool `write_plugin` - tinggal chat "morela buatin command ..." dan bot bakal generate + simpan file plugin-nya sendiri.
+
+<br />
+
+---
+
+## 🕒 Sewa Bot (Owner) - `sewabot.js` & `delsewa.js`
+
+Fitur buat owner yang nyewain bot ke grup orang lain dengan masa aktif terbatas. Ada 3 bagian: 2 plugin command dan 1 scheduler background (`Core/sewaScheduler.js`).
+
+**Alur pakai `.sewabot`:**
+1. Ketik `.sewabot` tanpa argumen → bot nampilin daftar semua grup tempat dia jadi member lewat tombol *single_select* (nama grup, jumlah member, JID).
+2. Ketuk salah satu grup → bot balik nanya tanggal jatuh tempo sewa (nunggu balasan teks di chat yang sama, sesi timeout 5 menit, cuma nerima balasan dari pengirim yang sama).
+3. Ketik tanggal, format bebas: `15 september 2026` atau `15-09-2026` (nama bulan Indonesia didukung, singkatan juga bisa: `jan`, `feb`, `agu`/`ags`, dst). Ketik `batal` buat batalin proses.
+4. Bot simpan status sewa ke kolom `settings.sewa` grup itu di database: `active`, `tenantJid`, `startedAt`, `untilAt`, `reminded`.
+
+**Alur pakai `.delsewa`:** sama seperti `.sewabot` tapi nampilin daftar grup yang **lagi disewa** (dengan tanggal habisnya), diketuk salah satu → status sewa grup itu langsung dihapus (`sewa: null`), reminder & auto-keluar otomatis nonaktif buat grup tersebut.
+
+**`Core/sewaScheduler.js`** jalan otomatis tiap 15 menit ngecek semua grup yang punya status sewa aktif:
+- **H-3 sebelum habis** → kirim reminder ke grup + tag owner, biar diperpanjang.
+- **Udah lewat tanggal habis** → kirim pesan pemberitahuan ke grup, bot otomatis `groupLeave()` dari grup itu, lalu data grupnya dihapus dari database.
+
+| Command | Fungsi | Akses |
+|---|---|---|
+| `.sewabot` | Pilih grup lalu set tanggal jatuh tempo sewa bot | Owner |
+| `.sewabot <jid@g.us>` | Langsung ke step input tanggal buat grup tertentu (skip pilih dari daftar) | Owner |
+| `.delsewa` | Pilih grup yang lagi disewa buat dihapus status sewanya | Owner |
+| `.delsewa <jid@g.us>` | Langsung hapus status sewa grup tertentu | Owner |
 
 <br />
 
@@ -240,6 +344,30 @@ Diimplementasikan di `System/superowner.js`, dipicu otomatis dari isi pesan (buk
 Berguna buat debug live (cek status API eksternal, isi file di disk, state proses, dll) tanpa perlu deploy ulang. Command yang mengandung pola restart proses (`pm2 restart`, `systemctl restart`, dll) otomatis dikasih jeda & pesan peringatan sebelum dieksekusi.
 
 > ⚠️ Fitur ini setara akses shell penuh ke server. Pastikan `config.owners`/main owner cuma diisi nomor yang beneran dipercaya.
+
+<br />
+
+---
+
+## 🤖 AI Agent (Main Owner) - `aiagent.js`
+
+Dipicu **wake word "morela"** di dalam kalimat (bukan prefix command), khusus **main owner**, dengan history percakapan per-chat (auto-expire 6 jam / max 200 sesi).
+
+**Tools yang bisa dipanggil AI secara otonom:**
+
+| Tool | Fungsi |
+|---|---|
+| `download_video` / `search_video` / `download_music` | Cari & download video/musik YouTube langsung dari chat |
+| `edit_image` | Edit gambar yang direply (deteksi otomatis dari kata "edit/ubah/hapus/tambah" + ada foto) |
+| `list_files` / `read_file` | Lihat isi struktur project & baca isi file plugin |
+| `write_plugin` | **Generate & simpan plugin baru** langsung ke `Plugins-ESM/` dari instruksi bahasa natural |
+| `edit_file` | Edit file plugin yang sudah ada |
+| `scan_and_count` | Hitung ulang jumlah plugin/command di project |
+| `check_logs` / `analyze_error` | Baca log runtime & bantu diagnosa error |
+| `find_plugin` / `get_plugin` | Cari command & lihat isi kodenya |
+| `run_backup` | Trigger backup project (sama seperti `.backup`) |
+
+Model AI diambil dari daftar model gratis OpenRouter dengan **fallback berantai** (kalau model 1 kena limit, otomatis lanjut ke model berikutnya). Command `.reset`/`.lupa`/`.forget`/`.clear` buat menghapus history percakapan AI.
 
 <br />
 
@@ -282,7 +410,7 @@ Semua command di atas khusus admin grup (`handler.admin = true`, `handler.group 
 
 ## 🎨 Tampilan Balasan (Branded Replies)
 
-Balasan teks otomatis dibungkus tampilan "forwarded dari channel" lewat `Core/sockext.js`. Atur lewat `config.js`: `ownerName`, `channelJid`, `channelName`, `thumbnail`. Matikan dengan `brandedReplies: false`.
+Balasan teks otomatis dibungkus tampilan "forwarded dari channel" lewat `Core/sockext.js`. Atur lewat `config.js`: `ownerName`, `channelJid`, `channelName`, `thumbnail`. Matikan dengan `brandedReplies: false`. Gaya visual balasan bisa dikustomisasi lebih jauh lewat `.setreplystyle` (lihat [Gaya Tampilan](#️-gaya-tampilan-menu--owner--reply)).
 
 <br />
 
@@ -290,8 +418,10 @@ Balasan teks otomatis dibungkus tampilan "forwarded dari channel" lewat `Core/so
 
 ## ⚙️ Konfigurasi Tambahan
 
-- **`media/menu.jpg`**: belum disertakan, tambahkan sendiri kalau mau menu bergambar.
-- **`githubToken` / `githubRepo`**: dipakai untuk push/backup plugin langsung ke GitHub lewat REST API (bukan `git push` biasa).
+- **`media/menu.jpg`**: dipakai sebagai gambar header menu/style-picker; ganti sendiri kalau mau tampilan custom.
+- **`githubToken` / `githubRepo`**: dipakai untuk push/backup plugin langsung ke GitHub lewat REST API (bukan `git push` biasa), lewat command `.pushgit`.
+- **`apiKeys.openrouter`**: wajib diisi buat fitur AI Agent (`aiagent.js`).
+- **`apiKeys.huggingface`**: wajib diisi (bisa array multi-token buat auto-rotate) buat fitur `aiedit` & `nanobanana`.
 
 > Semua nilai sensitif (nomor owner, API key, token) ada langsung di `config.js`. Kalau mau push ke repo publik, kosongkan dulu atau masukkan `config.js` ke `.gitignore`.
 
