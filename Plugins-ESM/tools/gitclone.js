@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MAX_SIZE = 300 * 1024 * 1024;
 function parseRepoInput(raw) {
