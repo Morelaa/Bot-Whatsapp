@@ -1,10 +1,15 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import { normNum, isLidJid, resolveLidToPhone, findBotParticipant, autoMapParticipantLids } from '../Library/resolve.js';
 import events, { EVENTS } from './events.js';
 import { upsertGroupSettings, getGroup } from '../Database/db.js';
 import { recordMemberJoin, recordMemberLeave, recordMemberPromote, recordMemberDemote } from '../Database/groupMembers.js';
 import { logError } from './logutil.js';
-const MAX_MESSAGES_PER_CHAT = 100;
+const MAX_MESSAGES_PER_CHAT = 3000;
 function extractParticipantJid(p) {
     if (typeof p === 'string')
         return p;
