@@ -1,9 +1,16 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
+import fs from 'fs';
+import path from 'path';
 import { default as makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, DisconnectReason, } from '@itsliaaa/baileys';
 import { Boom } from '@hapi/boom';
 import NodeCache from 'node-cache';
 import readline from 'readline';
-import fs from 'fs';
+import qrcode from 'qrcode-terminal';
 import config from './config.js';
 import store from './Core/store.js';
 import extendSocket from './Core/sockext.js';
@@ -16,6 +23,18 @@ import events, { EVENTS } from './Core/events.js';
 import { checkpointAndClose } from './Database/sqlite.js';
 import { setLidMapping } from './Database/db.js';
 import { bindReactionDelete } from './System/reactdelete.js';
+import { bindAntiFakeEdit } from './System/antifakeedit.js';
+import { startSewaScheduler } from './Core/sewaScheduler.js';
+const CUSTOM_TMPDIR = path.resolve('./tmp');
+try {
+    fs.mkdirSync(CUSTOM_TMPDIR, { recursive: true });
+    process.env.TMPDIR = CUSTOM_TMPDIR;
+    process.env.TMP = CUSTOM_TMPDIR;
+    process.env.TEMP = CUSTOM_TMPDIR;
+}
+catch (e) {
+    console.error('[TMPDIR] Gagal setup folder temp custom, fallback ke default:', e?.message);
+}
 let reconnectAttempts = 0;
 function askQuestion(query) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -25,11 +44,6 @@ function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
 }
 async function primeMainOwnerLid(sock) {
-    // Baileys can tell us the LID that corresponds to a phone number via
-    // onWhatsApp(). We do this once at startup for the main owner so the
-    // LID<->phone mapping already exists in the DB *before* any message comes
-    // in — this is what makes DM-only owner commands (no group participants to
-    // cross-reference) work reliably instead of depending on chance.
     const mainOwnerNum = String(config.mainOwner || '').replace(/[^0-9]/g, '');
     if (!mainOwnerNum || typeof sock.onWhatsApp !== 'function')
         return;
@@ -55,7 +69,7 @@ async function startBot() {
     let sock = makeWASocket({
         version,
         logger,
-        printQRInTerminal: false,
+        printQRInTerminal: false, 
         browser: ['Ubuntu', 'Chrome', '114.0.5735.198'],
         generateHighQualityLinkPreview: true,
         syncFullHistory: false,
@@ -74,7 +88,11 @@ async function startBot() {
     sock = extendSocket(sock);
     store.bind(sock);
     sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+        if (qr && config.authMethod === 'qr' && !sock.authState?.creds?.registered) {
+            logInfo('Scan QR di bawah ini lewat WhatsApp -> Perangkat Tertaut -> Tautkan Perangkat.');
+            qrcode.generate(qr, { small: true });
+        }
         if (connection === 'open') {
             reconnectAttempts = 0;
             logSuccess(`${config.botName} berhasil terhubung sebagai ${sock.user?.id}`);
@@ -84,6 +102,7 @@ async function startBot() {
             store.reconcileGroups(sock)
                 .then((count) => logInfo(`Reconcile grup selesai: ${count} grup aktif tersinkron ke database.`))
                 .catch((err) => logError('Reconcile grup gagal:', err?.message || err));
+            startSewaScheduler(sock);
         }
         if (connection === 'close') {
             const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
@@ -106,6 +125,7 @@ async function startBot() {
     });
     sock.ev.on('creds.update', saveCreds);
     bindReactionDelete(sock);
+    bindAntiFakeEdit(sock);
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify')
             return;
@@ -113,7 +133,7 @@ async function startBot() {
             handleMessage(sock, raw).catch((err) => logError('Unhandled error di handleMessage:', err?.message));
         }
     });
-    if (!sock.authState?.creds?.registered) {
+    if (!sock.authState?.creds?.registered && config.authMethod === 'pairing') {
         await sleep(3000);
         let phoneNumber = config.pairingNumber;
         if (!phoneNumber) {
@@ -130,6 +150,9 @@ async function startBot() {
         catch (err) {
             logError('Gagal request pairing code:', err?.message);
         }
+    }
+    else if (!sock.authState?.creds?.registered && config.authMethod === 'qr') {
+        logInfo('Menunggu QR code muncul... (mode QR aktif, lihat config.authMethod)');
     }
     return sock;
 }
