@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -20,12 +25,29 @@ class PluginManager {
         }
         return true;
     }
+    _findDuplicateCommand(handler, excludeFilePath) {
+        const key = handler.command.toString();
+        for (const [filePath, existing] of this.plugins.entries()) {
+            if (filePath === excludeFilePath) continue;
+            if (existing.command.toString() === key) {
+                return filePath;
+            }
+        }
+        return null;
+    }
     async _loadFile(filePath) {
         try {
             const url = `${pathToFileURL(filePath).href}?v=${Date.now()}`;
             const mod = await import(url);
             const handler = mod.default;
             this._validate(handler, filePath);
+            const dupPath = this._findDuplicateCommand(handler, filePath);
+            if (dupPath) {
+                const msg = `Command ${handler.command} di ${filePath} sudah dipakai oleh ${dupPath} — plugin ini ditolak (skip) biar gak duplikat.`;
+                logWarn(msg);
+                events.emitLogged(EVENTS.PLUGIN_ERROR, { filePath, error: msg });
+                return null;
+            }
             handler.filePath = filePath;
             handler.help ??= [];
             handler.tags ??= [];
@@ -118,6 +140,11 @@ class PluginManager {
             const mod = await import(url);
             const handler = mod.default;
             this._validate(handler, filePath);
+            const dupPath = this._findDuplicateCommand(handler, filePath);
+            if (dupPath) {
+                const dupRel = path.relative(__dirname, dupPath).replace(/\\/g, '/').replace(/\.js$/i, '');
+                throw new Error(`Command ${handler.command} sudah dipakai oleh plugin lain: ${dupRel}.js. Kalau maksudnya update/perbaiki plugin itu, simpan dengan nama file yang SAMA (path: "${dupRel}"), bukan nama baru. Kalau memang mau bikin plugin baru yang beda, ganti command-nya biar gak duplikat.`);
+            }
             handler.filePath = filePath;
             handler.help ??= [];
             handler.tags ??= [];
