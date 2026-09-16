@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import axios from 'axios';
 import vm from 'vm';
 import config from '../../config.js';
@@ -53,7 +58,7 @@ async function fetchSnapsave(igUrl) {
   for (const sm of strMatches) {
     try { html += JSON.parse('"' + sm[1] + '"'); } catch { }
   }
-  if (!html) html = raw; // fallback in case format changes and content is already plain HTML
+  if (!html) html = raw; 
   const items = [];
   const re = /<img src="([^"]+)"[^>]*>[\s\S]{0,300}?icon-(dlimage|dlvideo)[\s\S]{0,300}?href="([^"]+)"/g;
   let m;
@@ -72,6 +77,7 @@ async function downloadBuf(url) {
   const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000, headers: { 'User-Agent': 'Mozilla/5.0' } });
   return Buffer.from(res.data);
 }
+export { fetchSnapsave, downloadBuf };
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   if (!text) return m.reply(
     `ɪɴꜱᴛᴀɢʀᴀᴍ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ\n\n` +
