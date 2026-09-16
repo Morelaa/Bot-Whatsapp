@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import config from '../config.js';
 import { isLidJid, resolveLidToPhone, normNum } from '../Library/resolve.js';
 import { setLidMapping } from '../Database/db.js';
@@ -46,12 +51,6 @@ function extractQuoted(message, type) {
     };
 }
 function pickSenderAlt(raw, isGroup) {
-    // Baileys (v6.8+/v7) attaches an "alt" JID alongside the primary one whenever
-    // WhatsApp addresses a chat/participant via LID: participantAlt/participantPn
-    // for groups, remoteJidAlt/remoteJidPn for DMs. Whichever side is the LID, the
-    // Alt/Pn side is the real phone-number JID. We grab it directly from the raw
-    // message instead of relying only on a locally-cached LID->phone table, so a
-    // fresh/empty/corrupted cache doesn't block owner checks.
     const key = raw?.key || {};
     const alt = isGroup
         ? (key.participantAlt || key.participantPn || raw?.participantAlt || raw?.participantPn)
