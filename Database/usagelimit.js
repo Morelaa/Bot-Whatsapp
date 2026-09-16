@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import db from './sqlite.js';
 import config from '../config.js';
 import { DateTime } from 'luxon';
@@ -11,8 +16,6 @@ const stmtGetAllToday = db.prepare('SELECT jid, used FROM usage_limit WHERE date
 const stmtDeleteByJid = db.prepare('DELETE FROM usage_limit WHERE jid = ?');
 const stmtDeleteAll = db.prepare('DELETE FROM usage_limit');
 function today() {
-    // Pakai tanggal lokal Asia/Jakarta (WIB) biar limit harian reset persis
-    // jam 00:00 WIB, bukan jam 00:00 UTC (yang jatuhnya jam 07:00 WIB).
     return DateTime.now().setZone('Asia/Jakarta').toFormat('yyyy-MM-dd');
 }
 export function getUsedToday(jid) {
