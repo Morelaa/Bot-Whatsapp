@@ -1,16 +1,21 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import fs from 'fs';
 import path from 'path';
 import archiver from 'archiver';
 import config from '../../config.js';
 import { getMainOwnerNumber } from '../../System/mainowner.js';
 const IGNORE_GLOBS = [
-    'node_modules/**', '.git/**', '*.zip',
+    'node_modules/**', 'node/**', '.git/**', '*.zip',
     'session/**', 'sessions/**',
     'tmp/**', 'temp/**',
     '.npm/**', '.pm2/**', '.config/**',
     '.cache/**', 'logs/**',
-    'package-lock.json',
+    'package-lock.json', '.bashrc',
 ];
 function genZipName() {
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
