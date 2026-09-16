@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import fs from 'fs';
 const BOLD_SANS_UPPER_BASE = 0x1d5d4;
 const BOLD_SANS_LOWER_BASE = 0x1d5ee;
@@ -58,10 +63,13 @@ export function formatBytes(bytes, decimals = 2) {
 }
 export function formatDuration(seconds) {
     seconds = Math.floor(seconds);
-    const h = Math.floor(seconds / 3600);
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     const parts = [];
+    if (d)
+        parts.push(`${d}h`);
     if (h)
         parts.push(`${h}j`);
     if (m)
