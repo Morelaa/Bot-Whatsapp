@@ -1,8 +1,13 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import config from '../../config.js';
 import db from '../../Database/db.js';
 import usagelimit from '../../Database/usagelimit.js';
-import { toPhoneJid } from '../../Library/resolve.js';
+import { toPhoneJid, resolveLidToPhone } from '../../Library/resolve.js';
 const handler = async (m, { text }) => {
     const botName = config.botName;
     const arg = (text || '').trim().toLowerCase();
@@ -15,11 +20,17 @@ const handler = async (m, { text }) => {
         return;
     }
     const limit = config.defaultUsageLimit;
-    const allUsers = db.getUsers();
-    // Data usage_limit kadang kesimpen pakai jid "@lid" (bukan "@s.whatsapp.net"),
-    // tergantung format apa yang kepakai pas command dijalankan. Normalize dulu
-    // ke jid phone-based biar nyambung sama data di tabel users, nggak nyasar
-    // jadi baris terpisah / ketimpa 0.
+    const rawUsers = db.getUsers();
+    const allUsers = {};
+    for (const [jid, row] of Object.entries(rawUsers)) {
+        const phoneFromRow = row?.phone ? row.phone.replace(/[^0-9]/g, '') : '';
+        const canonicalJid = toPhoneJid(jid) ||
+            (phoneFromRow ? phoneFromRow + '@s.whatsapp.net' : null) ||
+            jid;
+        if (!allUsers[canonicalJid] || (!allUsers[canonicalJid].name && row.name)) {
+            allUsers[canonicalJid] = row;
+        }
+    }
     const usageMap = {};
     for (const row of usagelimit.getAllUsageToday()) {
         const canonicalJid = toPhoneJid(row.jid) || row.jid;
@@ -30,7 +41,6 @@ const handler = async (m, { text }) => {
         await m.reply(`╭┈┈⬡「 *ᴄᴇᴋ ʟɪᴍɪᴛ ᴀʟʟ* 」\n┃\n┃ ✧ ʙᴇʟᴜᴍ ᴀᴅᴀ ᴅᴀᴛᴀ ʟɪᴍɪᴛ ᴜꜱᴇʀ\n┃\n╰┈┈┈┈┈┈┈┈⬡\n\n꒰ © ${botName} ꒱`);
         return;
     }
-    // Urutkan dari yang pemakaiannya paling banyak biar langsung kelihatan siapa yang paling aktif hari ini.
     const sortedJids = [...jids].sort((a, b) => (usageMap[b] || 0) - (usageMap[a] || 0));
     let txt = `╭┈┈⬡「 *ᴄᴇᴋ ʟɪᴍɪᴛ ꜱᴇᴍᴜᴀ ᴜꜱᴇʀ* 」\n┃\n┃ ✧ ᴛᴏᴛᴀʟ : *${sortedJids.length} ᴜꜱᴇʀ*\n┃\n`;
     let i = 1;
@@ -38,7 +48,12 @@ const handler = async (m, { text }) => {
         const u = allUsers[jid];
         const isPrem = !!u?.premium;
         const used = usageMap[jid] || 0;
-        const nomor = jid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/[^0-9]/g, '');
+        let nomor = jid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/[^0-9]/g, '');
+        if (jid.endsWith('@lid')) {
+            const resolved = resolveLidToPhone(jid) || (u?.phone ? u.phone.replace(/[^0-9]/g, '') : null);
+            if (resolved)
+                nomor = resolved;
+        }
         const nama = u?.name || nomor;
         const pemakaian = isPrem ? ` Unlimited` : `${used}/${limit}`;
         txt += `┃ ✧ *${i}.* ${nama}\n┃ ✧ +${nomor}\n┃ ✧ ${pemakaian}\n┃\n`;
