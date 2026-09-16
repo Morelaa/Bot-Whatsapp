@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import axios from 'axios';
 import config from '../../config.js';
 import { findMediaMessage, downloadMessageMedia } from '../../Library/handle.js';
@@ -119,7 +124,7 @@ const handler = async (m, { conn, command }) => {
             .setSubtitle(` ${(buffer.length / 1024).toFixed(1)} KB`)
             .setBody('Pilih level upscale:')
             .setFooter(' 2x Cepat & ringan | 4x Kualitas maksimal')
-            .setThumbnail(config.menuImage)
+            .setThumbnail(config.buttonv2Img)
             .addButton(' 2x', '.hd_2x')
             .addButton(' 4x', '.hd_4x')
             .send(m.chat, { quoted: fk });
