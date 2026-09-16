@@ -1,21 +1,23 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import axios from 'axios';
 import sharp from 'sharp';
 import config from '../../config.js';
 import { findMediaMessage, downloadMessageMedia } from '../../Library/handle.js';
 import { buildFkontak } from '../../Library/utils.js';
-
 const SPACE_BASE = 'https://prithivmlmods-qwen-image-edit-2511-loras-fast.hf.space';
 const LORA_ADAPTER = 'Photo-to-Anime';
 const ANIME_PROMPT =
     'convert this photo into anime style, high quality anime art, clean line art, cel shading, ' +
     'vibrant colors, detailed anime illustration, keep the same composition, pose, and subject';
-
 function clampDimension(value, min = 256, max = 2048, multiple = 64) {
     const rounded = Math.round(value / multiple) * multiple;
     return Math.min(max, Math.max(min, rounded));
 }
-
 async function padToSquare(buffer) {
     const meta = await sharp(buffer).metadata();
     const origW = meta.width || 1024;
@@ -41,7 +43,6 @@ async function padToSquare(buffer) {
         origH,
     };
 }
-
 async function unpadResult(resultBuffer, padInfo) {
     const meta = await sharp(resultBuffer).metadata();
     const outW = meta.width || padInfo.size;
@@ -62,17 +63,14 @@ async function unpadResult(resultBuffer, padInfo) {
         .jpeg()
         .toBuffer();
 }
-
 function getTokenList() {
     const raw = config.apiKeys?.huggingface;
     const list = Array.isArray(raw) ? raw.filter(Boolean) : raw ? [raw] : [];
     return list;
 }
-
 function authHeaders(token) {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
-
 async function callInfer(paddedBuffer, token) {
     const dataUri = `data:image/jpeg;base64,${paddedBuffer.toString('base64')}`;
     const dataArray = [JSON.stringify([dataUri]), ANIME_PROMPT, LORA_ADAPTER, 0, true, 1, 4];
@@ -102,19 +100,16 @@ async function callInfer(paddedBuffer, token) {
     if (!completeEvt) throw new Error('Event "complete" tidak ditemukan di response stream (format space mungkin beda).');
     return JSON.parse(completeEvt[2]);
 }
-
 function isQuotaError(e) {
     const status = e?.response?.status;
     const rawMsg = e?.response?.data ? JSON.stringify(e.response.data) : e.message;
     return e.message === 'QUOTA_HABIS' || status === 429 || /quota|zerogpu|gpu.{0,20}(exceed|limit)|rate.?limit/i.test(String(rawMsg));
 }
-
 function extractResultUrl(output) {
     const first = Array.isArray(output) ? output[0] : output;
     const fileObj = Array.isArray(first) ? first[0]?.image || first[0] : first;
     return fileObj?.url || (fileObj?.path ? `${SPACE_BASE}/gradio_api/file=${fileObj.path}` : null);
 }
-
 async function processWithToken(buffer, token, padInfo) {
     const output = await callInfer(padInfo.buffer, token);
     const resultUrl = extractResultUrl(output);
@@ -123,7 +118,6 @@ async function processWithToken(buffer, token, padInfo) {
     const rawResult = Buffer.from(imgRes.data);
     return unpadResult(rawResult, padInfo);
 }
-
 async function processAnime(buffer) {
     const padInfo = await padToSquare(buffer);
     const tokens = getTokenList();
@@ -143,7 +137,6 @@ async function processAnime(buffer) {
     }
     throw lastErr || new Error('QUOTA_HABIS');
 }
-
 const handler = async (m, { conn, usedPrefix, command }) => {
     const media = findMediaMessage(m);
     if (!media || media.type !== 'imageMessage') {
@@ -180,7 +173,6 @@ const handler = async (m, { conn, usedPrefix, command }) => {
         return m.reply(`╭┈┈⬡「 *ɢᴀɢᴀʟ ᴘʀᴏꜱᴇꜱ ᴛᴏ ᴀɴɪᴍᴇ* 」\n┃\n┃ ✧ ${e.message}\n╰┈┈┈┈┈┈┈┈⬡`);
     }
 };
-
 handler.help = ['toanime <reply foto>'];
 handler.tags = ['maker'];
 handler.command = /^(toanime|animeify|jadianime)$/i;
