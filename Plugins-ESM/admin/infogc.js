@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import fs from 'fs';
 import * as baileys from '@itsliaaa/baileys';
 import config from '../../config.js';
@@ -24,7 +29,7 @@ async function getGroupPP(conn, groupJid) {
         const url = await conn.profilePictureUrl(groupJid, 'image');
         if (url) return url;
     } catch {  }
-    return config.thumbnail;
+    return config.buttonv2Img;
 }
 async function isGroupBotAdmin(conn, groupJid, botJid) {
     try {
@@ -185,11 +190,11 @@ const handler = async (m, { conn, command, text }) => {
             sections.push({ title: `Grup ${i + 1}–${Math.min(i + MAX_PER_SECTION, groupList.length)} dari ${groupList.length}`, rows: buildRows(slice) });
         }
         const caption = `*Info Grup*\n\nTotal Grup : ${groupList.length}\n\n_Ketuk nama grup untuk lihat info lengkap._`;
-        const thumb = fs.existsSync(config.registerImage) ? fs.readFileSync(config.registerImage) : undefined;
+        const thumb = config.buttonv2Img;
         let imgMsg = null;
         if (thumb) {
             try {
-                const media = await prepareWAMessageMedia({ image: thumb }, { upload: conn.waUploadToServer });
+                const media = await prepareWAMessageMedia({ image: { url: thumb } }, { upload: conn.waUploadToServer });
                 imgMsg = media?.imageMessage;
             } catch {  }
         }
