@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import db from '../../Database/db.js';
 import {
     isLidJid,
@@ -9,7 +14,6 @@ import {
     resolveBotAdmin,
     isSenderAdminInGroup,
 } from '../../Library/resolve.js';
-
 const SWGC_TYPES = new Set(['groupStatusMessageV2', 'groupStatusMessage']);
 const WRAPPER_TYPES = new Set([
     'ephemeralMessage',
@@ -17,7 +21,6 @@ const WRAPPER_TYPES = new Set([
     'viewOnceMessageV2',
     'viewOnceMessageV2Extension',
 ]);
-
 function getEffectiveTypeAndSender(m) {
     let node = m.message;
     let type = m.type;
@@ -33,7 +36,6 @@ function getEffectiveTypeAndSender(m) {
     }
     return type;
 }
-
 function resolveDisplay(m, senderJid) {
     const isLid = isLidJid(senderJid);
     const rawLidNum = senderJid.split('@')[0];
@@ -49,7 +51,6 @@ function resolveDisplay(m, senderJid) {
         (resolvedPhone ? `+${phoneNum}` : rawLidNum);
     return { phoneNum, mentionJid, displayName };
 }
-
 async function kickNoWarn(sock, m, senderJid, botAdmin) {
     const { phoneNum, mentionJid, displayName } = resolveDisplay(m, senderJid);
     await sock.sendMessage(m.chat, {
@@ -72,7 +73,6 @@ async function kickNoWarn(sock, m, senderJid, botAdmin) {
         console.error('[ANTI-SWGC] kick error:', e?.message);
     }
 }
-
 const handler = async (m, { args }) => {
     const from = m.chat;
     const mode = (args[0] || '').toLowerCase();
