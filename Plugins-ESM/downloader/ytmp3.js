@@ -1,15 +1,52 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 import axios from 'axios';
+import sharp from 'sharp';
 import { spawn } from 'child_process';
+import * as baileys from '@itsliaaa/baileys';
 import { getYoutubeResources, pickAudio } from '../../Library/vidssave.js';
-
+async function buildOrderQuote({ thumbnailUrl, title, orderTitle }) {
+    let thumbBuf = Buffer.alloc(0);
+    try {
+        const res = await axios.get(thumbnailUrl, { responseType: 'arraybuffer', timeout: 15000 });
+        thumbBuf = await sharp(Buffer.from(res.data))
+            .trim()
+            .resize(300, 300, { fit: 'cover', position: 'center' })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+    }
+    catch (e) {
+        console.error('[THUMBNAIL ERROR]', e);
+    }
+    return {
+        participant: '0@s.whatsapp.net',
+        remoteJid: 'status@broadcast',
+        quotedMessage: {
+            orderMessage: {
+                orderId: String(Date.now()),
+                thumbnail: thumbBuf,
+                itemCount: 1,
+                status: 0,
+                surface: 0,
+                message: title,
+                orderTitle,
+                sellerJid: '0@s.whatsapp.net',
+                totalAmount1000: '0',
+                totalCurrencyCode: 'IDR',
+            },
+        },
+    };
+}
 const EXT_BY_FORMAT = { M4A: 'm4a', OPUS: 'opus', WEBM: 'weba' };
 const MIME_BY_FORMAT = { M4A: 'audio/mp4', OPUS: 'audio/ogg', WEBM: 'audio/webm' };
-
 function remuxAudio(buffer, inExt, outExt) {
     return new Promise((resolve, reject) => {
         const id = crypto.randomBytes(6).toString('hex');
@@ -50,7 +87,6 @@ function remuxAudio(buffer, inExt, outExt) {
         ff.on('error', (e) => { clearTimeout(timer); cleanup(); reject(e); });
     });
 }
-
 const handler = async (m, { conn, args }) => {
     const url = args[0];
     if (!url || !/(youtube\.com|youtu\.be)/.test(url)) {
@@ -90,15 +126,24 @@ const handler = async (m, { conn, args }) => {
         fs.writeFileSync(audioOut, fixedBuf);
         const sizeMB = fs.statSync(audioOut).size / 1024 / 1024;
         await conn.sendMessage(m.chat, { react: { text: '', key: m.key } });
-        await conn.sendMessage(m.chat, {
-            image: { url: thumbnail },
-            caption: ` *${title}*\n ${chosen.quality} ${chosen.format}\n ${sizeMB.toFixed(2)} MB`,
-        }, { quoted: m.raw });
-        await conn.sendMessage(m.chat, {
-            audio: fs.readFileSync(audioOut),
-            mimetype,
-            fileName: `${title}.${ext}`,
-        }, { quoted: m.raw });
+        const orderQuote = await buildOrderQuote({
+            thumbnailUrl: thumbnail,
+            title,
+            orderTitle: `🎵 ${chosen.quality} ${chosen.format} • ${sizeMB.toFixed(2)} MB`,
+        });
+        const audioBuf = fs.readFileSync(audioOut);
+        const media = await baileys.prepareWAMessageMedia({ audio: audioBuf, mimetype, ptt: false }, { upload: conn.waUploadToServer });
+        await conn.relayMessage(
+            m.chat,
+            {
+                audioMessage: {
+                    ...media.audioMessage,
+                    fileName: `${title}.${ext}`,
+                    contextInfo: orderQuote,
+                },
+            },
+            { messageId: conn.generateMessageTag() }
+        );
         await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
     }
     catch (err) {
