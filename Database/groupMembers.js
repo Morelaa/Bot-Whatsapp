@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import db from './sqlite.js';
 const stmtUpsert = db.prepare(`
 	INSERT INTO group_members (group_jid, member_jid, name, role, status, joined_at, left_at, updated_at)
