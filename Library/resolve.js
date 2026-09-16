@@ -1,3 +1,9 @@
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import { getPhoneByLid, getLidByPhone, getPushName, setLidMapping, } from '../Database/db.js';
 import { isMainOwner as _isMainOwnerNum } from '../System/mainowner.js';
 export function normNum(raw) {
@@ -198,6 +204,7 @@ export function mapSenderLid(senderRaw, participants) {
 }
 const _liveFetchTs = new Map();
 const LIVE_FETCH_COOLDOWN_MS = 15000;
+const LIVE_FETCH_TIMEOUT_MS = 8000; 
 export async function resolveSenderLidLive(sock, groupJid, senderRaw) {
     if (!isLidJid(senderRaw))
         return null;
@@ -207,7 +214,10 @@ export async function resolveSenderLidLive(sock, groupJid, senderRaw) {
         return null;
     _liveFetchTs.set(groupJid, now);
     try {
-        const meta = await sock.groupMetadata(groupJid);
+        const meta = await Promise.race([
+            sock.groupMetadata(groupJid),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('live groupMetadata timeout')), LIVE_FETCH_TIMEOUT_MS)),
+        ]);
         autoMapParticipantLids(meta?.participants);
         globalThis.__botStore__?.setGroupMetadata?.(groupJid, meta);
         return mapSenderLid(senderRaw, meta?.participants);
@@ -231,12 +241,6 @@ export function getSenderCandidates(m, participants) {
     add(m?.key?.participant);
     if (isPrivate)
         add(rawRemoteJid);
-    // senderAlt comes straight from Baileys' own key.participantAlt/participantPn
-    // (or remoteJidAlt/remoteJidPn for DMs) — the phone-number JID WhatsApp sends
-    // alongside a LID, independent of our local cache. Use it directly, and if it
-    // pairs with a LID we haven't cached yet, cache it immediately so future
-    // messages (including DMs with no group participants to cross-check) resolve
-    // right away instead of depending on group-metadata luck.
     if (m?.senderAlt) {
         add(m.senderAlt);
         if (isLidJid(rawSender) && !isLidJid(m.senderAlt)) {
