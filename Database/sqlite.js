@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
@@ -80,6 +85,7 @@ export function migrate() {
     try {
         run();
         ensureColumn('users', 'sn_code', 'TEXT');
+        ensureColumn('kv_store', 'expires_at', 'INTEGER');
         logInfo('Database migration selesai.');
     }
     catch (err) {
@@ -101,10 +107,6 @@ catch (err) {
 }
 export function checkpointAndClose() {
     try {
-        // Flush WAL (data/morela.db-wal) into the main db file so a killed process
-        // (e.g. "Stop" di Pterodactyl, biasanya SIGKILL/SIGTERM tanpa graceful exit)
-        // doesn't leave uncommitted WAL data behind (this is the main source of the
-        // "database kadang corrupt" symptom).
         db.pragma('wal_checkpoint(TRUNCATE)');
         db.close();
         logInfo('Database checkpoint & close berhasil sebelum shutdown.');
