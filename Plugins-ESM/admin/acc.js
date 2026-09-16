@@ -1,12 +1,15 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import config from '../../config.js';
 import db from '../../Database/db.js';
 import { Button } from '../../Library/MessageBuilder.js';
 import { loadConfigImage } from '../../Library/utils.js';
 import { findBotParticipant, isParticipantAdmin } from '../../Library/resolve.js';
-
 const MAX_PER_SECTION = 10;
-
 async function getAdminGroups(conn) {
     const groups = await conn.groupFetchAllParticipating();
     const botJid = conn?.user?.id ?? '';
@@ -20,7 +23,6 @@ async function getAdminGroups(conn) {
     }
     return adminGroups;
 }
-
 async function approveGroup(conn, groupId) {
     const pending = await conn.groupRequestParticipantsList(groupId);
     if (!pending?.length) return { total: 0, approved: 0 };
@@ -28,11 +30,8 @@ async function approveGroup(conn, groupId) {
     await conn.groupRequestParticipantsUpdate(groupId, jids, 'approve');
     return { total: jids.length, approved: jids.length };
 }
-
 const handler = async (m, { conn, args, command }) => {
     const botName = config.botName;
-
-    // .acc --confirm <groupId> -> dipanggil otomatis saat tap salah satu grup di list
     if (command === 'acc' && args[0] === '--confirm' && args[1]) {
         const groupId = args[1];
         let groupName = 'Grup';
@@ -55,8 +54,6 @@ const handler = async (m, { conn, args, command }) => {
         }
         return;
     }
-
-    // .accall -> acc semua member pending di semua grup dimana bot jadi admin
     if (command === 'accall') {
         await conn.sendMessage(m.chat, { react: { text: '🕕', key: m.key } });
         let adminGroups;
@@ -82,7 +79,6 @@ const handler = async (m, { conn, args, command }) => {
                     lines.push(` ✧ ${g.subject} : ${total} ᴍᴇᴍʙᴇʀ`);
                 }
             } catch {
-                // lewati grup yang gagal, lanjut ke grup berikutnya
             }
         }
         await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
@@ -97,8 +93,6 @@ const handler = async (m, { conn, args, command }) => {
             `\n╰┈┈┈┈┈┈┈┈⬡\n\n꒰ © ${botName} ꒱`
         );
     }
-
-    // .acc (tanpa argumen) -> tampilkan list grup dimana bot jadi admin (single select)
     let adminGroups;
     try {
         adminGroups = await getAdminGroups(conn);
@@ -108,7 +102,6 @@ const handler = async (m, { conn, args, command }) => {
     if (!adminGroups.length) {
         return m.reply(`╭┈┈⬡「 *ɪɴꜰᴏ* 」\n┃ ✧ ʙᴏᴛ ᴛɪᴅᴀᴋ ᴊᴀᴅɪ ᴀᴅᴍɪɴ ᴅɪ ɢʀᴜᴘ ᴍᴀɴᴀᴘᴜɴ.\n╰┈┈┈┈┈┈┈┈⬡`);
     }
-
     const pendingCounts = await Promise.all(
         adminGroups.map(async (g) => {
             try {
@@ -119,21 +112,18 @@ const handler = async (m, { conn, args, command }) => {
             }
         })
     );
-
     const bodyText =
         `╭┈┈⬡「 *ᴀᴄᴄ ᴍᴇᴍʙᴇʀ* 」\n` +
         `┃ ✧ ᴛᴏᴛᴀʟ ɢʀᴜᴘ (ʙᴏᴛ ᴀᴅᴍɪɴ) : ${adminGroups.length}\n` +
         `╰┈┈┈┈┈┈┈┈⬡\n\n` +
         `Pilih grup di bawah untuk acc semua request bergabung yang pending.\n` +
         `Ketik *accall* untuk acc semua grup sekaligus.`;
-
     const imgBuf = await loadConfigImage(config.menuImage);
     const btn = new Button(conn)
         .setBody(bodyText)
         .setFooter(`© ${botName} • Admin Panel`)
         .setImage(imgBuf)
         .addSelection(' Pilih Grup');
-
     for (let i = 0; i < adminGroups.length; i += MAX_PER_SECTION) {
         const slice = adminGroups.slice(i, i + MAX_PER_SECTION);
         const sectionTitle = `Grup ${i + 1}–${Math.min(i + MAX_PER_SECTION, adminGroups.length)} dari ${adminGroups.length}`;
@@ -150,7 +140,6 @@ const handler = async (m, { conn, args, command }) => {
     }
     await btn.send(m.chat, { quoted: m.raw });
 };
-
 handler.help = ['acc', 'accall'];
 handler.tags = ['admin'];
 handler.command = /^(acc|accall)$/i;
