@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import db from './sqlite.js';
 const stmtIncrement = db.prepare(`
 	INSERT INTO chat_count (jid, command, count, last_used) VALUES (?, ?, 1, ?)
@@ -23,4 +28,7 @@ export function getTopCommands(limit = 10) {
 export function getTopUsers(limit = 10) {
     return stmtTopUsers.all(limit);
 }
-export default { increment, getUsageByJid, getTopCommands, getTopUsers };
+export function clearAll() {
+    db.prepare('DELETE FROM chat_count').run();
+}
+export default { increment, getUsageByJid, getTopCommands, getTopUsers, clearAll };
