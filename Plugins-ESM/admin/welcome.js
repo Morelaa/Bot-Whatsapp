@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import config from '../../config.js';
 import { getGroup, upsertGroupSettings, getPushName } from '../../Database/db.js';
 import { ButtonV2 } from '../../Library/MessageBuilder.js';
@@ -15,12 +20,7 @@ async function resolveThumbnail(sock, targetJid) {
         const url = await sock.profilePictureUrl(targetJid, 'image');
         if (url) return url;
     } catch {}
-    try {
-        const botJid = (sock.user?.id?.split(':')[0] || '') + '@s.whatsapp.net';
-        const botUrl = await sock.profilePictureUrl(botJid, 'image');
-        if (botUrl) return botUrl;
-    } catch {}
-    return null;
+    return config.buttonv2Img;
 }
 export async function sendWelcome(sock, groupJid, memberJid, groupName, memberCount, pushname) {
     const safeJid = sanitizeJid(memberJid);
