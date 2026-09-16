@@ -1,4 +1,9 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import config from './config.js';
 import { serializeMessage } from './System/message.js';
 import { isDuplicateMessage, isRateLimited } from './Core/cache.js';
@@ -18,7 +23,7 @@ import pluginManager from './Plugins-ESM/_pluginmanager.js';
 import { handleSuperOwnerShortcut } from './System/superowner.js';
 import { runUnbranded } from './Core/brandcontext.js';
 import { loadConfigImage } from './Library/utils.js';
-const UNBRANDED_TAGS = ['sticker', 'tools'];
+const UNBRANDED_TAGS = [];
 function isUnbrandedPlugin(plugin) {
     return !!plugin?.tags?.some((t) => UNBRANDED_TAGS.includes(t));
 }
@@ -180,6 +185,9 @@ async function executeCommand(sock, m, plugin, extra) {
         await plugin(m, extra);
         chatcount.increment(m.sender, m.command);
         stats.increment('commands_executed');
+        const _now = new Date();
+        stats.increment(`hour_${_now.getHours()}`);
+        stats.increment(`day_${_now.getDay()}`);
         events.emitLogged(EVENTS.COMMAND_EXECUTED, { command: m.command, sender: m.sender, ms: Date.now() - startedAt });
     }
     catch (err) {
@@ -268,8 +276,6 @@ export async function handleMessage(sock, rawMsg) {
             return;
         }
         const ctx = { m, participants, groupMeta, sock };
-        // Owner & main owner selalu dikecualikan dari limit harian (mereka yang
-        // ngatur bot, nggak masuk akal ikut kena jatah kayak user biasa).
         if (plugin.limit && !isOwnerSender && !isMainOwnerSender) {
             const cost = typeof plugin.limit === 'number' ? plugin.limit : 1;
             const isPremium = checkPremiumUser(regJid);
