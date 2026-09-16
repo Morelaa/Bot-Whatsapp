@@ -1,70 +1,67 @@
-'use strict';
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+//    </>  𝐂𝐫𝐞𝐝𝐢𝐭𝐬  </>      //
+//   𝐂𝐫𝐞𝐚𝐭𝐨𝐫: 𝐀𝐥𝐩𝐮𝐭𝐫𝐚𝐚       //
+//   𝐓𝐞𝐥𝐞𝐠𝐫𝐚𝐦: @𝐬𝐢𝐚𝐩𝐚𝐚𝐤𝐮𝟖𝟕𝟖     //
+//﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌﹌//
+
 import axios from 'axios';
-import crypto from 'crypto';
+import ffmpeg from 'fluent-ffmpeg';
+import { PassThrough, Readable } from 'stream';
 import { Carousel, Button } from '../../Library/MessageBuilder.js';
-import { buildFkontak } from '../../Library/utils.js';
+import { buildFkontak, sleep } from '../../Library/utils.js';
 import config from '../../config.js';
-const TT_URL_REGEX =
-    /https?:\/\/(?:www\.|m\.|vm\.|vt\.|v\.)?tiktok\.com(?:\/[^\s]*)?|https?:\/\/(?:vm|vt)\.tiktok\.com\/[^\s]*/i;
-const SNAPTIK_BASE = 'https://snaptik.app';
-const SNAPTIK_SECRET = 'sn4pt1k_v3r1fy2026';
+const TT_URL_REGEX = /https?:\/\/(?:www\.|v[tm]\.)?tiktok\.com\/[^\s]+/i;
+const API_BASE = 'https://api.legionteknologi.my.id/download';
 function numFmt(n) {
     const num = parseInt(n) || 0;
     if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
     if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K';
     return String(num);
 }
-function solveChallenge(c) {
-    switch (c.t) {
-        case 'b': return (c.a ^ c.b) >> c.s & 255;
-        case 'r': return c.n.reduce((a, b) => a + b, 0) * 2 + 1;
-        case 'c': return c.w.charCodeAt(c.i) * c.m;
-        case 'm': return (c.a + c.b) % 100 * c.c;
-        case 'n': return c.a * c.b + c.b * c.c + c.c * c.a - c.a;
-        default: throw new Error(`Tipe challenge tidak dikenal: ${c.t}`);
-    }
+function progressBar(progress) {
+    progress = Math.max(0, Math.min(100, Math.round(progress)));
+    const totalBars = 10;
+    const filled = Math.round((progress / 100) * totalBars);
+    return '█'.repeat(filled) + '░'.repeat(totalBars - filled);
 }
-function buildXVerify(id, p) {
-    const raw = Buffer.from(p, 'base64');
-    const iv = raw.subarray(0, 16);
-    const ciphertext = raw.subarray(16);
-    const key = crypto.createHash('sha256').update(`${SNAPTIK_SECRET}:${id}`).digest();
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-    const challenge = JSON.parse(plaintext);
-    const { _e, _h } = challenge;
-    delete challenge._e;
-    delete challenge._h;
-    const answer = solveChallenge(challenge);
-    return `${id}:${answer}:${_e}:${_h}`;
-}
-async function getXVerify() {
-    const res = await axios.post(`${SNAPTIK_BASE}/api/token`, {}, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
-        timeout: 15000,
-    });
-    const { id, p } = res.data || {};
-    if (!id || !p) throw new Error('Respons /api/token tidak lengkap (kemungkinan snaptik ganti format).');
-    return buildXVerify(id, p);
-}
-async function fetchSnaptik(url, retry = true) {
-    const xVerify = await getXVerify();
+async function updateProgress(conn, chat, statusKey, progress, statusText) {
     try {
-        const res = await axios.get(`${SNAPTIK_BASE}/api/extract`, {
-            params: { url },
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-Verify': xVerify },
-            timeout: 30000,
-        });
-        const d = res.data;
-        if (!d?.success || !d?.data) throw new Error(d?.error || 'Snaptik gagal proses link ini.');
-        return d.data;
-    }
-    catch (err) {
-        if (retry && err?.response?.status === 403) return fetchSnaptik(url, false);
-        throw new Error(err?.response?.data?.error || err.message);
+        const editKey = {
+            remoteJid: chat,
+            id: statusKey.id,
+            fromMe: true,
+            ...(statusKey.participant ? { participant: statusKey.participant } : {}),
+        };
+        await conn.relayMessage(
+            chat,
+            {
+                protocolMessage: {
+                    key: editKey,
+                    type: 14,
+                    editedMessage: {
+                        conversation: `╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 」\n┃ ✧ ${statusText}\n┃ ✧ [${progressBar(progress)}] ${progress}%\n╰┈┈┈┈┈┈┈┈⬡`,
+                    },
+                },
+            },
+            {}
+        );
+    } catch (err) {
+        console.error('[TTDL] gagal update progress:', err.message);
     }
 }
-async function downloadBuffer(fileUrl) {
+export async function fetchTiktok(url) {
+    let res = await axios.get(`${API_BASE}/tiktok?url=${encodeURIComponent(url)}`, { timeout: 30000 }).catch(() => null);
+    let data = res?.data;
+    if (!data || !data.status) {
+        res = await axios.get(`${API_BASE}/tiktokv2?url=${encodeURIComponent(url)}`, { timeout: 30000 }).catch(() => null);
+        data = res?.data;
+    }
+    if (!data || !data.status) {
+        throw new Error('Gagal mengambil media dari link TikTok tersebut.');
+    }
+    return data;
+}
+export async function downloadBuffer(fileUrl) {
     const res = await axios.get(fileUrl, {
         responseType: 'arraybuffer',
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -73,37 +70,80 @@ async function downloadBuffer(fileUrl) {
     });
     return Buffer.from(res.data);
 }
-function extractAudioUrlFromRenderLink(renderUrl) {
+function toOpusPTT(mp3Buffer) {
+    return new Promise((resolve, reject) => {
+        const input = new Readable({ read() {} });
+        input.push(mp3Buffer);
+        input.push(null);
+        const output = new PassThrough();
+        const chunks = [];
+        output.on('data', (chunk) => chunks.push(chunk));
+        output.on('end', () => resolve(Buffer.concat(chunks)));
+        output.on('error', reject);
+        ffmpeg(input)
+            .audioCodec('libopus')
+            .audioChannels(1)
+            .audioFrequency(48000)
+            .format('ogg')
+            .on('error', (err) => reject(new Error(`ffmpeg error: ${err.message}`)))
+            .pipe(output, { end: true });
+    });
+}
+async function sendAudio(conn, chat, m, audioUrl, contextInfo) {
+    if (!audioUrl) return;
     try {
-        const token = new URL(renderUrl).searchParams.get('token');
-        if (!token) return null;
-        const payloadB64 = token.split('.')[1];
-        if (!payloadB64) return null;
-        const json = Buffer.from(payloadB64, 'base64url').toString('utf8');
-        const payload = JSON.parse(json);
-        return payload.audio_url || null;
-    }
-    catch {
-        return null;
+        const mp3Buffer = await downloadBuffer(audioUrl);
+        try {
+            const opusBuffer = await toOpusPTT(mp3Buffer);
+            await conn.sendMessage(
+                chat,
+                { audio: opusBuffer, mimetype: 'audio/ogg; codecs=opus', ptt: true, contextInfo },
+                { quoted: m.raw }
+            );
+        } catch (convErr) {
+            console.error('[TTDL] gagal convert ke opus, fallback mp3:', convErr.message);
+            await conn.sendMessage(chat, { audio: mp3Buffer, mimetype: 'audio/mpeg', ptt: false, contextInfo }, { quoted: m.raw });
+        }
+    } catch (err) {
+        console.error('[TTDL] gagal kirim audio:', err.message);
     }
 }
-const handler = async (m, { conn, args }) => {
-    const url = args[0];
-    if (!url || !TT_URL_REGEX.test(url)) {
-        await m.reply(`╭┈┈⬡「 *ᴋᴀꜱɪʜ ʟɪɴᴋ ᴛɪᴋᴛᴏᴋ ʏᴀɴɢ ᴠᴀʟɪᴅ.* 」\n┃ ✧ ᴄᴏɴᴛᴏʜ:\n┃ ✧ .ᴛɪᴋᴛᴏᴋ ʜᴛᴛᴘꜱ://ᴠᴛ.ᴛɪᴋᴛᴏᴋ.ᴄᴏᴍ/xxx\n┃ ✧ .ᴛɪᴋᴛᴏᴋ ʜᴛᴛᴘꜱ://ᴠᴍ.ᴛɪᴋᴛᴏᴋ.ᴄᴏᴍ/xxx\n┃ ✧ .ᴛɪᴋᴛᴏᴋ ʜᴛᴛᴘꜱ://ᴡᴡᴡ.ᴛɪᴋᴛᴏᴋ.ᴄᴏᴍ/@ᴜꜱᴇʀ/ᴠɪᴅᴇᴏ/xxx\n╰┈┈┈┈┈┈┈┈⬡`);
-        return;
-    }
-    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+async function sendErrorCard(conn, m, message) {
     try {
-        const data = await fetchSnaptik(url);
-        await conn.sendMessage(m.chat, { react: { text: '', key: m.key } });
-        const authorName = data.author?.name || data.author?.username || 'unknown';
-        const stats = data.stats || {};
-        const caption =
-            ` *TikTok*\n` +
-            `${authorName}${data.author?.username ? ` (@${data.author.username})` : ''}\n` +
-            `${(data.title || '').slice(0, 80)}${(data.title || '').length > 80 ? '...' : ''}\n` +
-            ` ${numFmt(stats.playCount)}   ${numFmt(stats.commentCount)}   ${numFmt(stats.shareCount)}`;
+        const err = new Button(conn)
+            .setBody(`╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ɢᴀɢᴀʟ* 」\n┃ ✧ ${String(message).slice(0, 150)}\n╰┈┈┈┈┈┈┈┈⬡`)
+            .setFooter(`© ${config.botName}`)
+            .addCopy('📋 Salin Pesan Error', String(message));
+        await err.send(m.chat);
+    } catch {
+        await m.reply(`╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ɢᴀɢᴀʟ* 」\n┃ ✧ ${String(message).slice(0, 150)}\n╰┈┈┈┈┈┈┈┈⬡`);
+    }
+}
+const handler = async (m, { conn, args, usedPrefix, command }) => {
+    let url = args[0]?.trim();
+    if (!url && m.quoted?.text) {
+        const match = m.quoted.text.match(TT_URL_REGEX);
+        if (match) url = match[0];
+    }
+    if (!url || !TT_URL_REGEX.test(url)) {
+        const contoh = new Button(conn)
+            .setBody(
+                `╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 」\n┃ ✧ ᴍᴀꜱᴜᴋᴋᴀɴ ᴜʀʟ ᴠɪᴅᴇᴏ/ꜱʟɪᴅᴇ ᴛɪᴋᴛᴏᴋ ʏᴀɴɢ ᴠᴀʟɪᴅ!\n┃ ✧ ᴄᴏɴᴛᴏʜ: ${usedPrefix}${command} https://vt.tiktok.com/xxxx/\n╰┈┈┈┈┈┈┈┈⬡`
+            )
+            .setFooter(`© ${config.botName}`)
+            .addCopy('📋 Salin Contoh Format', `${usedPrefix}${command} https://vt.tiktok.com/xxxx/`);
+        return contoh.send(m.chat);
+    }
+    if (conn.reactSafe) await conn.reactSafe(m.chat, m.key, '⏳');
+    let statusMsg;
+    try {
+        statusMsg = await m.reply(`╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ* 」\n┃ ✧ ᴍᴇᴍᴘʀᴏꜱᴇꜱ ᴜʀʟ ᴛɪᴋᴛᴏᴋ...\n┃ ✧ [${progressBar(0)}] 0%\n╰┈┈┈┈┈┈┈┈⬡`);
+        await updateProgress(conn, m.chat, statusMsg.key, 30, 'ᴍᴇɴɢʜᴜʙᴜɴɢɪ ᴀᴘɪ ᴛɪᴋᴛᴏᴋ...');
+        await sleep(500);
+        const data = await fetchTiktok(url);
+        await updateProgress(conn, m.chat, statusMsg.key, 100, 'ᴍᴇᴅɪᴀ ʙᴇʀʜᴀꜱɪʟ ᴅɪᴅᴀᴘᴀᴛᴋᴀɴ!');
+        await sleep(400);
+        if (conn.reactSafe) await conn.reactSafe(m.chat, m.key, '📥');
         const fkontak = await buildFkontak(conn, config);
         const fkontakContext = {
             quotedMessage: fkontak.message,
@@ -111,68 +151,77 @@ const handler = async (m, { conn, args }) => {
             stanzaId: fkontak.key.id,
             remoteJid: fkontak.key.remoteJid,
         };
-        if (data.type === 'carousel' && Array.isArray(data.images) && data.images.length) {
+        try {
+            await conn.sendMessage(m.chat, { delete: statusMsg.key });
+        } catch {}
+        const author = data.author?.nickname || data.author?.fullname || '-';
+        const authorHandle = data.author?.fullname ? `@${data.author.fullname}` : '';
+        const audioUrl = data.music_info?.url || data.audio;
+        const photos = Array.isArray(data.data) ? data.data.filter((v) => v.type === 'photo') : [];
+        const fotoArr = Array.isArray(data.foto) ? data.foto : [];
+        if (photos.length || fotoArr.length) {
+            const imgUrls = photos.length ? photos.map((p) => p.url) : fotoArr;
+            const caption =
+                `╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ꜱʟɪᴅᴇ* 」\n` +
+                `┃ ✧ ᴀᴜᴛʜᴏʀ: ${author} ${authorHandle}\n` +
+                `┃ ✧ ᴛᴏᴛᴀʟ: ${imgUrls.length} ꜰᴏᴛᴏ\n` +
+                `╰┈┈┈┈┈┈┈┈⬡\n\n_© ${config.botName}_`;
             const cards = [];
-            for (let i = 0; i < data.images.length; i++) {
-                const img = data.images[i];
-                const buf = await downloadBuffer(img.downloadUrl || img.url);
-                const cardBuilder = new Button(conn).setImage(buf);
-                if (i === 0) {
-                    cardBuilder.setTitle(authorName).setSubtitle(data.author?.username ? `@${data.author.username}` : '');
-                }
-                cardBuilder.addUrl('Buka di TikTok', url);
-                cards.push(await cardBuilder.toCard());
-            }
-            try {
-                const carousel = new Carousel(conn)
-                    .setBody(caption)
-                    .setContextInfo(fkontakContext)
-                    .addCard(cards);
-                await carousel.send(m.chat);
-            }
-            catch (e) {
-                console.error('[TT] gagal kirim carousel, fallback ke gambar biasa:', e.message);
-                for (let i = 0; i < data.images.length; i++) {
-                    const img = data.images[i];
-                    const buf = await downloadBuffer(img.downloadUrl || img.url);
-                    await conn.sendMessage(m.chat, { image: buf, caption: i === 0 ? caption : undefined, contextInfo: fkontakContext });
-                }
-            }
-            const audioUrl = extractAudioUrlFromRenderLink(data.downloadUrl);
-            if (audioUrl) {
+            for (let i = 0; i < imgUrls.length; i++) {
                 try {
-                    const audioBuf = await downloadBuffer(audioUrl);
-                    await conn.sendMessage(m.chat, { audio: audioBuf, mimetype: 'audio/mpeg', ptt: false, contextInfo: fkontakContext });
-                }
-                catch (e) {
-                    const status = e?.response?.status;
-                    console.error('[TT] gagal kirim audio slide:', status || '', e.message);
-                    const info = status
-                        ? `_Audio slide gagal diambil (CDN TikTok menolak permintaan, kode ${status}). Gambar tetap terkirim di atas._`
-                        : `_Audio slide gagal diambil (${e.message}). Gambar tetap terkirim di atas._`;
-                    await m.reply(info).catch(() => { });
+                    const cardBuilder = new Button(conn).setImage(imgUrls[i]).addUrl('🔗 Lihat Gambar Asli', imgUrls[i]);
+                    if (i === 0) cardBuilder.setTitle(author).setSubtitle(authorHandle);
+                    cards.push(await cardBuilder.toCard());
+                } catch (e) {
+                    console.error('[TTDL] gagal siapkan slide ke-', i, e.message);
                 }
             }
-            else {
-                console.error('[TT] audio_url tidak ditemukan di render token untuk:', data.downloadUrl);
-                await m.reply('_Audio slide tidak ditemukan pada sumber ini. Gambar tetap terkirim di atas._').catch(() => { });
+            if (cards.length) {
+                try {
+                    const carousel = new Carousel(conn).setBody(caption).setContextInfo(fkontakContext).addCard(cards);
+                    await carousel.send(m.chat);
+                } catch (e) {
+                    console.error('[TTDL] gagal kirim carousel, fallback gambar biasa:', e.message);
+                    for (let i = 0; i < imgUrls.length; i++) {
+                        try {
+                            const buf = await downloadBuffer(imgUrls[i]);
+                            await conn.sendMessage(m.chat, { image: buf, caption: i === 0 ? caption : undefined, contextInfo: fkontakContext });
+                        } catch {}
+                    }
+                }
             }
+            await sendAudio(conn, m.chat, m, audioUrl, fkontakContext);
+            if (conn.reactSafe) await conn.reactSafe(m.chat, m.key, '✅');
+            return;
         }
-        else {
-            const videoBuf = await downloadBuffer(data.downloadUrl);
-            const sizeMB = (videoBuf.length / 1024 / 1024).toFixed(2);
-            await conn.sendMessage(m.chat, { video: videoBuf, caption: `${caption}\n ${sizeMB} MB`, contextInfo: fkontakContext });
+        const videoUrl =
+            (Array.isArray(data.data) && (data.data.find((v) => v.type === 'nowatermark_hd')?.url || data.data.find((v) => v.type === 'nowatermark')?.url)) ||
+            data.mp4_hd ||
+            data.mp4;
+        if (!videoUrl) throw new Error('Media tidak ditemukan.');
+        const caption =
+            `╭┈┈⬡「 *ᴛɪᴋᴛᴏᴋ ʀᴇꜱᴜʟᴛ (ʜᴅ)* 」\n` +
+            `┃ ✧ ᴊᴜᴅᴜʟ: ${data.title || '-'}\n` +
+            `┃ ✧ ᴀᴜᴛʜᴏʀ: ${author} ${authorHandle}\n` +
+            `┃ ✧ ᴅᴜʀᴀꜱɪ: ${data.duration || '-'}\n` +
+            `┃ ✧ ᴠɪᴇᴡꜱ: ${numFmt(data.stats?.views)} | ʟɪᴋᴇꜱ: ${numFmt(data.stats?.likes)}\n` +
+            `╰┈┈┈┈┈┈┈┈⬡\n\n_© ${config.botName}_`;
+        await conn.sendMessage(m.chat, { video: { url: videoUrl }, caption, contextInfo: fkontakContext }, { quoted: m.raw });
+        await sendAudio(conn, m.chat, m, audioUrl, fkontakContext);
+        if (conn.reactSafe) await conn.reactSafe(m.chat, m.key, '✅');
+    } catch (error) {
+        console.error('[TTDL ERROR]', error);
+        if (statusMsg?.key) {
+            try {
+                await conn.sendMessage(m.chat, { delete: statusMsg.key });
+            } catch {}
         }
-        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-    }
-    catch (err) {
-        console.error('[TT]', err.message);
-        await conn.sendMessage(m.chat, { react: { text: '', key: m.key } }).catch(() => { });
-        await m.reply(`╭┈┈⬡「 *ɪɴꜰᴏ* 」\n┃ ✧ ɢᴀɢᴀʟ ᴅᴏᴡɴʟᴏᴀᴅ: ${err.message}\n╰┈┈┈┈┈┈┈┈⬡`);
+        if (conn.reactSafe) await conn.reactSafe(m.chat, m.key, '❌');
+        await sendErrorCard(conn, m, error.message || 'Terjadi kesalahan.');
     }
 };
-handler.help = ['tiktok <link tiktok>'];
+handler.help = ['ttdl <link tiktok>'];
 handler.tags = ['downloader'];
-handler.command = /^(tiktok|tt)$/i;
+handler.command = /^(ttdl|ttnowm|tthd)$/i;
 handler.limit = true;
 export default handler;
